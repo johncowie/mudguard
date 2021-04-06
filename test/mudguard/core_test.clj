@@ -110,7 +110,10 @@
     (is (= (sut/validation-errors
              (sut/validation-error [0 :parse-int] "A" {})
              (sut/validation-error [2 :parse-int] "B" {}))
-           (sut/validate validator ["A" "2" "B"])))))
+           (sut/validate validator ["A" "2" "B"]))))
+  (testing "possible-errors"
+    (is (= (sut/sample-error [:int?] {})
+           (sut/possible-errors (sut/each int?))))))
 
 (deftest one-of-test
   (let [validator (sut/one-of int? string? boolean?)]
@@ -121,7 +124,12 @@
     (is (= false
            (sut/validate validator false)))
     (is (= (sut/validation-error [:boolean?] :keyword {})
-           (sut/validate validator :keyword)))))
+           (sut/validate validator :keyword))))
+  (testing "possible-errors, can only fail on last validator"
+    (is (= (sut/sample-error [:boolean?])
+           (sut/possible-errors (sut/one-of int? string? boolean?))))
+    (is (= (sut/sample-error [:int?])
+           (sut/possible-errors (sut/one-of boolean? string? int?))))))
 
 (deftest function-test
   (testing "can use predicate function as validator"

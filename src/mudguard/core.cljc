@@ -171,7 +171,8 @@
                      (if (error? v)
                        (errors-at i v)
                        (conj acc v)))) [])))
-  (possible-errors [_]))
+  (possible-errors [_]
+    (possible-errors validator)))
 
 (defn each [validator]
   (Each. validator))
@@ -183,7 +184,8 @@
       (if (error? rA)
         (validate validatorB v)
         rA)))
-  (possible-errors [_]))
+  (possible-errors [_]
+    (possible-errors validatorB)))
 
 (defn one-of [validator1 validator2 & validators]
   (->> validators
