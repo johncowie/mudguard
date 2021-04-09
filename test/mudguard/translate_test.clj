@@ -4,7 +4,7 @@
             [mudguard.core :as core]))
 
 (deftest matches-translation?
-  (testing "pattern matching on translation paths"
+  (testing "pattern matching on translation paths (indices are ignored)"
     (are [path translation-key should-match]
       (is (= should-match
              (sut/matches-translation? path translation-key)))
@@ -14,6 +14,9 @@
       [:a :int?] [:a :int?] true
       [:a :int?] [:b :int?] false
       [:int?] [:a :int?] false
+      [0 :int?] [:int?] true
+      [:a 1 :int?] [:a :int?] true
+      [:a 1 :int?] [:b :int?] false
       )
     )
   )
@@ -77,19 +80,35 @@
                                       [:b :c] ["Value should not be nil"]}))))
   (testing "overlapping errors at different levels of structure.."
     (is (= {:a {::sut/errors ["Need structure :("]
-                :a1 ["Need integer"]}}
-           (sut/restructure-messages {[:a] ["Need structure :("]
+                :a1          ["Need integer"]}}
+           (sut/restructure-messages {[:a]     ["Need structure :("]
                                       [:a :a1] ["Need integer"]}))))
   (testing "empty path key"
     (is (= ["Some error"]
            (sut/restructure-messages {[] ["Some error"]})))
     (is (= {::sut/errors ["Some error"]
-            :a ["A errors"]}
-           (sut/restructure-messages {[] ["Some error"]
+            :a           ["A errors"]}
+           (sut/restructure-messages {[]   ["Some error"]
                                       [:a] ["A errors"]})))))
 
-(deftest missing-translations-test
+(deftest untranslatable-errors-test
   (testing "TODO"
-    ;; TODO
-    )
-  )
+    (let [errors (core/validation-errors
+                   (core/sample-error [:a :int?])
+                   (core/sample-error [:b :int?])
+                   (core/sample-error [0 :missing]))]
+      (testing "all errors returned if no translations provided"
+        (is (= errors
+               (sut/untranslatable-errors {} errors))))
+      (testing "just missing errors returned if some translations provided"
+        (is (= (core/validation-errors
+                 (core/sample-error [:a :int?])
+                 (core/sample-error [:b :int?]))
+               (sut/untranslatable-errors {:missing "Value is missing"} errors)))
+        (is (= (core/sample-error [:a :int?])
+               (sut/untranslatable-errors {:missing   "Value is missing"
+                                           [:b :int?] "B should be int"} errors))))
+      (testing "nil returned if all translations provided"
+        (is (= nil
+               (sut/untranslatable-errors {:missing "Value is missing"
+                                           :int?    "B should be int"} errors)))))))

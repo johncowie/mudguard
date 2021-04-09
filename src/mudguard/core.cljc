@@ -14,7 +14,7 @@
   ([id]
    (sample-error id {}))
   ([id constraints]
-   (validation-error id ::no-input constraints)))
+   (validation-error id ::sample-input constraints)))
 
 (defn join-errors [errorA errorB]
   {::errors (concat (::errors errorA) (::errors errorB))})
@@ -61,9 +61,10 @@
       (catch Exception e
         (validation-error [id] v constraints))))
   (possible-errors [_]
-    (validation-error [id] ::no-input constraints)))
+    (sample-error [id] constraints)))
 
 (defn validator [id constraints fn]
+  ;; TODO assert that id is keyword
   (Validator. id fn constraints))
 
 (defn predicate-id [sym]
@@ -111,9 +112,10 @@
     (if optional?
       (errors-at key (possible-errors validator))
       (join-errors
-        (validation-error [key :missing] ::no-input {})
+        (sample-error [key :missing])
         (errors-at key (possible-errors validator))))))
 
+;; TODO 'at' should also take optional id (assert that it's a keyword)
 (defn at [key validator]
   (At. false key validator))
 
@@ -160,19 +162,23 @@
 (defrecord Each [validator]
   IValidator
   (validate [_ v]
-    (->> v
-         (map (partial validate validator))
-         (map-indexed vector)
-         (reduce (fn [acc [i v]]
-                   (if (error? acc)
-                     (if (error? v)
-                       (join-errors acc (errors-at i v))
-                       acc)
-                     (if (error? v)
-                       (errors-at i v)
-                       (conj acc v)))) [])))
+    (if (coll? v)
+      (->> v
+           (map (partial validate validator))
+           (map-indexed vector)
+           (reduce (fn [acc [i v]]
+                     (if (error? acc)
+                       (if (error? v)
+                         (join-errors acc (errors-at i v))
+                         acc)
+                       (if (error? v)
+                         (errors-at i v)
+                         (conj acc v)))) []))
+      (validation-error [:not-collection] v)))
   (possible-errors [_]
-    (possible-errors validator)))
+    (join-errors
+      (sample-error [:not-collection])
+      (possible-errors validator))))
 
 (defn each [validator]
   (Each. validator))

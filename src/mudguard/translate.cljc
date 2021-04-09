@@ -9,7 +9,7 @@
 (defn matches-translation? [error-path translation-id]
   (if (empty? error-path)
     false
-    (or (= error-path translation-id)
+    (or (= (remove int? error-path) translation-id)
         (matches-translation? (rest error-path) translation-id))))
 
 (defn map-over-keys [f m]
@@ -58,3 +58,10 @@
 (defn restructure-messages [error-messages]
   (->> error-messages
        (reduce add-error-msg {})))
+
+(defn untranslatable-errors [translations errors]
+  (let [error-list (::core/errors errors)
+        missing-translations (->> error-list
+                                  (remove (fn [e] (find-translation (::core/id e) translations))))]
+    (when-not (empty? missing-translations)
+      {::core/errors missing-translations})))

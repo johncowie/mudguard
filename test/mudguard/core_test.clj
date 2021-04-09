@@ -110,9 +110,14 @@
     (is (= (sut/validation-errors
              (sut/validation-error [0 :parse-int] "A" {})
              (sut/validation-error [2 :parse-int] "B" {}))
-           (sut/validate validator ["A" "2" "B"]))))
+           (sut/validate validator ["A" "2" "B"])))
+    (testing "error if value is not a sequence"
+      (is (= (sut/validation-error [:not-collection] :bob)
+            (sut/validate validator :bob)))))
   (testing "possible-errors"
-    (is (= (sut/sample-error [:int?] {})
+    (is (= (sut/validation-errors
+             (sut/sample-error [:not-collection])
+             (sut/sample-error [:int?]))
            (sut/possible-errors (sut/each int?))))))
 
 (deftest one-of-test
