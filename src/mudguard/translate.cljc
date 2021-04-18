@@ -50,7 +50,7 @@
         {path-f (add-error-msg {} [path-r messages])}
         (sequential? m)
         {::errors m
-         path-f (add-error-msg {} [path-r messages])}
+         path-f   (add-error-msg {} [path-r messages])}
         :else
         (update m path-f add-error-msg [path-r messages])
         ))
@@ -65,3 +65,8 @@
                                   (remove (fn [e] (find-translation (::core/id e) translations))))]
     (when-not (empty? missing-translations)
       {::core/errors missing-translations})))
+
+(defn missing-translations [translations validator]
+  (some->> validator
+           (core/possible-errors)
+           (untranslatable-errors translations)))
