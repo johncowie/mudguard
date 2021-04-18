@@ -1,0 +1,55 @@
+name: Mudguard
+
+on:
+  push:
+    branches: [ master ]
+    tags: ['*']
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    env:
+      DEPLOY_USERNAME: johncowie
+      DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-java@v1
+      with:
+        java-version: '11'
+    - uses: DeLaGuardo/setup-clojure@master
+      with:
+        cli: '1.10.1.708'
+    - name: Cache local Maven repository
+      uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('mudguard/deps.edn') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+    - name: Run tests
+      run: lein test
+    - name: Show Ref
+      run: echo "Github ref " ${{ github.ref }}
+    - name: Deploy Release
+      if: startsWith(github.ref, 'refs/tags')
+      run: |
+        echo "${GITHUB_REF#refs/*/}" | xargs lein set-version
+        lein deploy releases
+        lein next-snapshot
+    - name: Update Snapshot version
+      uses: EndBug/add-and-commit@v7 # https://github.com/marketplace/actions/add-commit
+      with:
+        author_name: CI
+        message: 'Bump snapshot version'
+        branch: 'master'
+        push: true
+    - name: Deploy to Clojars
+      if: github.ref == 'refs/heads/master'
+      run: lein deploy releases
+
+
