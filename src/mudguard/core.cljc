@@ -65,16 +65,30 @@
 
 (defn validator [id constraints fn]
   ;; TODO assert that id is keyword
+  (assert (keyword? id) (str "Validator ID must be a keyword - was " id))
   (Validator. id fn constraints))
 
-(defn predicate-id [sym]
+(def ^:private allowed-preds
+  #{"clojure.core/int?"
+    "clojure.core/string?"
+    "clojure.core/boolean?"
+    "clojure.core/number?"
+    "clojure.core/float?"
+    "clojure.core/double?"
+    "clojure.core/nil?"
+    "clojure.core/keyword?"
+    "clojure.core/any?"})
+
+(defn- predicate-id [sym]
   ;; TODO throw exception if fn--
-  (-> (clojure.lang.Compiler/demunge (str sym))
-      (str/split #"/")
-      last
-      (str/split #"@")
-      first
-      keyword))
+  (let [f-ref (-> (clojure.lang.Compiler/demunge (str sym))
+                  (str/split #"@")
+                  first
+                  (str/split #"--")
+                  first)]
+    (if (allowed-preds f-ref)
+      (keyword f-ref)
+      f-ref)))
 
 (defn predicate
   ([predicate-fn]
@@ -227,10 +241,12 @@
   (possible-errors [self]
     (-> self first each possible-errors)))
 
+
+
+
+
 ;; TODO
 ;; - optional value
-;; - schema
-;; - translations
 ;; - bunch of default validators
 
 

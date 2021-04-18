@@ -43,14 +43,14 @@
                (sut/possible-errors validator))))))
   (testing "optional"
     (let [validator (sut/opt-at :a int?)]
-      (is (= (sut/validation-error [:a :int?] "a" {})
+      (is (= (sut/validation-error [:a :clojure.core/int?] "a" {})
              (sut/validate validator {:a "a"})))
       (is (= {:a 1}
              (sut/validate validator {:a 1})))
       (is (= {}
              (sut/validate validator {})))
       (testing "possible-errors"
-        (is (= (sut/sample-error [:a :int?] {})
+        (is (= (sut/sample-error [:a :clojure.core/int?] {})
                (sut/possible-errors validator)))))))
 
 (deftest group-test
@@ -117,7 +117,7 @@
   (testing "possible-errors"
     (is (= (sut/validation-errors
              (sut/sample-error [:not-collection])
-             (sut/sample-error [:int?]))
+             (sut/sample-error [:clojure.core/int?]))
            (sut/possible-errors (sut/each int?))))))
 
 (deftest one-of-test
@@ -128,19 +128,19 @@
            (sut/validate validator "blah")))
     (is (= false
            (sut/validate validator false)))
-    (is (= (sut/validation-error [:boolean?] :keyword {})
+    (is (= (sut/validation-error [:clojure.core/boolean?] :keyword {})
            (sut/validate validator :keyword))))
   (testing "possible-errors, can only fail on last validator"
-    (is (= (sut/sample-error [:boolean?])
+    (is (= (sut/sample-error [:clojure.core/boolean?])
            (sut/possible-errors (sut/one-of int? string? boolean?))))
-    (is (= (sut/sample-error [:int?])
+    (is (= (sut/sample-error [:clojure.core/int?])
            (sut/possible-errors (sut/one-of boolean? string? int?))))))
 
 (deftest function-test
   (testing "can use predicate function as validator"
     (is (= 1
            (sut/validate int? 1)))
-    (is (= (sut/validation-error [:int?] "")
+    (is (= (sut/validation-error [:clojure.core/int?] "")
            (sut/validate int? "")))))
 
 (deftest map-test
@@ -148,8 +148,8 @@
     (is (= {:a 1 :b :keyword}
            (sut/validate {:a int? :b keyword?} {:a 1 :b :keyword})))
     (is (= (sut/validation-errors
-             (sut/validation-error [:a :int?] "bill")
-             (sut/validation-error [:b :keyword?] "ted"))
+             (sut/validation-error [:a :clojure.core/int?] "bill")
+             (sut/validation-error [:b :clojure.core/keyword?] "ted"))
            (sut/validate {:a int? :b keyword?} {:a "bill" :b "ted"}))))
   (testing "can specify optional keys"
     (let [validator {(sut/optional-key :a) int?
@@ -160,7 +160,7 @@
              (sut/validate validator {})))
       (is (= {:b 3}
              (sut/validate validator {:b 3})))
-      (is (= (sut/validation-error [:a :int?] "blah")
+      (is (= (sut/validation-error [:a :clojure.core/int?] "blah")
              (sut/validate validator {:a "blah" :b 3})))))
   (testing "nested"
     (is (= {:a {:aa 2 :ab 3}
@@ -183,6 +183,6 @@
       (is (= [{:a 1} {:a 2}]
              (sut/validate validator [{:a 1} {:a 2}])))
       (is (= (sut/validation-errors
-               (sut/validation-error [0 :a :int?] "X")
+               (sut/validation-error [0 :a :clojure.core/int?] "X")
                (sut/validation-error [1 :a :missing] nil))
              (sut/validate validator [{:a "X"} {} {:a 3}]))))))
