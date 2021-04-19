@@ -247,6 +247,8 @@
 
 ;; TODO
 ;; - optional value
+;; - can specify if extra keys are tolerated
+;; - maybe at-any? required?
 ;; - bunch of default validators
 
 
