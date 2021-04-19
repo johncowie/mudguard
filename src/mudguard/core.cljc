@@ -41,6 +41,12 @@
   (validate [validator v])
   (possible-errors [validator]))
 
+(defn throw-if-invalid [validator v]
+  (let [r (validate validator v)]
+    (if (error? r)
+      (throw (ex-info "Validation failed." r))
+      v)))
+
 (defrecord NoOpValidator []
   IValidator
   (validate [_ v]
