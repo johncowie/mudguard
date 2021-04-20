@@ -1,5 +1,6 @@
 (ns mudguard.core
-  (:require [clojure.string :as str])
+  (:require [clojure.string :as str]
+            [clojure.set :as set])
   (:import (clojure.lang IFn)))
 
 (defn validation-error
@@ -255,7 +256,7 @@
   (validator :invalid-keys {:keys valid-keys}
              (fn [constraints m]
                (let [input-keys (keys m)
-                     invalid-keys (clojure.set/difference (set input-keys) (set (:keys constraints)))]
+                     invalid-keys (set/difference (set input-keys) (set (:keys constraints)))]
                  (when (empty? invalid-keys)
                    (success-value m))))))
 
@@ -314,6 +315,10 @@
 (def Str string?)
 (def Nil nil?)
 (def Any any?)
+
+(def NotBlank (predicate :not-blank (complement str/blank?)))
+;; TODO
+(defn matches-regex [regex] Any)
 
 ;; TODO
 ;; - optional value

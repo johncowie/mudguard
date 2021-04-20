@@ -1,13 +1,12 @@
 (ns mudguard.validators-test
   (:require [clojure.test :refer :all]
-            [mudguard.core :as m]
-            [mudguard.validators :as sut]))
+            [mudguard.core :as sut]))
 
 (defn valid? [validator val]
-  (not (m/error? (m/validate validator val))))
+  (not (sut/error? (sut/validate validator val))))
 
 (defn invalid? [validator val]
-  (m/error? (m/validate validator val)))
+  (sut/error? (sut/validate validator val)))
 
 (deftest NotBlank-test
   (is (valid? sut/NotBlank "bob"))
