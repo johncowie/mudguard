@@ -70,7 +70,6 @@
     (sample-error [id] constraints)))
 
 (defn validator [id constraints fn]
-  ;; TODO assert that id is keyword
   (assert (keyword? id) (str "Validator ID must be a keyword - was " id))
   (Validator. id fn constraints))
 
@@ -116,31 +115,38 @@
   (possible-errors [self]
     (possible-errors (predicate self))))
 
-(defrecord At [optional? key validator]
+(defrecord At [optional? id key validator]
   IValidator
   (validate [this v]
     (if (and (associative? v) (contains? v key))
       (let [x (get v key)
             res (validate validator x)]
         (if (error? res)
-          (errors-at key res)
+          (errors-at id res)
           (assoc v key res)))
       (if optional?
         v
-        (validation-error [key :missing] nil {}))))
+        (validation-error [id :missing] nil {}))))
   (possible-errors [_]
     (if optional?
-      (errors-at key (possible-errors validator))
+      (errors-at id (possible-errors validator))
       (join-errors
-        (sample-error [key :missing])
-        (errors-at key (possible-errors validator))))))
+        (sample-error [id :missing])
+        (errors-at id (possible-errors validator))))))
 
-;; TODO 'at' should also take optional id (assert that it's a keyword)
-(defn at [key validator]
-  (At. false key validator))
+(defn at
+  ([key validator]
+   (at key key validator))
+  ([id key validator]
+   (assert (keyword? id) (str "Validator ID must be a keyword - was " id))
+   (At. false id key validator)))
 
-(defn opt-at [key validator]
-  (At. true key validator))
+(defn opt-at
+  ([key validator]
+   (opt-at key key validator))
+  ([id key validator]
+   (assert (keyword? id) (str "Validator ID must be a keyword - was " id))
+   (At. true id key validator)))
 
 (defrecord Chain [validatorA validatorB]
   IValidator
@@ -218,27 +224,80 @@
        (concat [validator1 validator2])
        (reduce (fn [v1 v2] (OneOf. v1 v2)))))
 
-(defn optional-key [k]
-  {::optional-key k})
+
+
+;; MAP shenanigans
+
+(defn required-key
+  ([k]
+   (required-key k k))
+  ([id k]
+   {::required-key {:id id :key k}}))
+
+(defn required-key-validator [{::keys [required-key]} validator]
+  (let [{:keys [id key]} required-key]
+    (at id key validator)))
+
+(defn optional-key
+  ([k]
+   (optional-key k k))
+  ([id k]
+   {::optional-key {:id id :key k}}))
+
+
+(defn optional-key-validator [{::keys [optional-key]} validator]
+  (let [{:keys [id key]} optional-key]
+    (opt-at id key validator)))
+
+(def any-key ::any-key)
+
+(defn key-set-validator [valid-keys]
+  (validator :invalid-keys {:keys valid-keys}
+             (fn [constraints m]
+               (let [input-keys (keys m)
+                     invalid-keys (clojure.set/difference (set input-keys) (set (:keys constraints)))]
+                 (when (empty? invalid-keys)
+                   (success-value m))))))
+
+(defn set-strictness [strict-mode? valid-keys key-validator]
+  (if strict-mode?
+    (group (key-set-validator valid-keys)
+           key-validator)
+    key-validator))
+
+(defn is-wrapped-key? [k wrapper]
+  (and (map? k) (contains? k wrapper)))
+
+(defn- unwrap-key [k]
+  (cond (is-wrapped-key? k ::optional-key) (-> k ::optional-key :key)
+        (is-wrapped-key? k ::required-key) (-> k ::required-key :key)
+        :else k))
+
+(defn- unwrap-keys [m]
+  (->> m
+       keys
+       (map unwrap-key)
+       (remove #{any-key})))
+
+(defn- construct-map-validator [m]
+  (let [strict-mode? (not (contains? m any-key))
+        unwrapped-keys (unwrap-keys m)]
+    (->> m
+         (map (fn [[k v]]
+                (cond
+                  (::optional-key k) (optional-key-validator k v)
+                  (::required-key k) (required-key-validator k v)
+                  (= k any-key) no-op-validator
+                  :else (at k v))))
+         (reduce group no-op-validator)
+         (set-strictness strict-mode? unwrapped-keys))))
 
 (extend-type clojure.lang.PersistentArrayMap
   IValidator
   (validate [self data]
-    (let [validator (->> self
-                         (map (fn [[k v]]
-                                (if-let [opt-k (::optional-key k)]
-                                  (opt-at opt-k v)
-                                  (at k v))))
-                         (reduce group no-op-validator))]
-      (validate validator data)))
+    (-> self construct-map-validator (validate data)))
   (possible-errors [self]
-    (let [validator (->> self
-                         (map (fn [[k v]]
-                                (if-let [opt-k (::optional-key k)]
-                                  (opt-at opt-k v)
-                                  (at k v))))
-                         (reduce group no-op-validator))]
-      (possible-errors validator))))
+    (-> self construct-map-validator possible-errors)))
 
 (extend-type clojure.lang.PersistentVector
   IValidator
@@ -250,6 +309,11 @@
 
 
 
+(def Int int?)
+(def Bool boolean?)
+(def Str string?)
+(def Nil nil?)
+(def Any any?)
 
 ;; TODO
 ;; - optional value

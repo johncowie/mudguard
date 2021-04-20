@@ -113,7 +113,7 @@
            (sut/validate validator ["A" "2" "B"])))
     (testing "error if value is not a sequence"
       (is (= (sut/validation-error [:not-collection] :bob)
-            (sut/validate validator :bob)))))
+             (sut/validate validator :bob)))))
   (testing "possible-errors"
     (is (= (sut/validation-errors
              (sut/sample-error [:not-collection])
@@ -145,12 +145,15 @@
 
 (deftest map-test
   (testing "can use clojure map as validator"
-    (is (= {:a 1 :b :keyword}
-           (sut/validate {:a int? :b keyword?} {:a 1 :b :keyword})))
-    (is (= (sut/validation-errors
-             (sut/validation-error [:a :clojure.core/int?] "bill")
-             (sut/validation-error [:b :clojure.core/keyword?] "ted"))
-           (sut/validate {:a int? :b keyword?} {:a "bill" :b "ted"}))))
+    (let [validator {:a int? :b keyword?}]
+      (is (= {:a 1 :b :keyword}
+             (sut/validate validator {:a 1 :b :keyword})))
+      (is (= (sut/validation-errors
+               (sut/validation-error [:a :clojure.core/int?] "bill")
+               (sut/validation-error [:b :clojure.core/keyword?] "ted"))
+             (sut/validate validator {:a "bill" :b "ted"})))
+      (is (= (sut/validation-error [:invalid-keys] {:a 1 :b :keyword :c 3} {:keys [:a :b]}) ;; TODO capture the invalid keys found
+             (sut/validate validator {:a 1 :b :keyword :c 3})))))
   (testing "can specify optional keys"
     (let [validator {(sut/optional-key :a) int?
                      :b                    int?}]
@@ -162,6 +165,14 @@
              (sut/validate validator {:b 3})))
       (is (= (sut/validation-error [:a :clojure.core/int?] "blah")
              (sut/validate validator {:a "blah" :b 3})))))
+  (testing "can specify any-key"
+    (let [validator {:a int? sut/any-key sut/Any}]
+      (is (= {:a 1}
+             (sut/validate validator {:a 1})))
+      (is (= {:a 2 :b 3}
+             (sut/validate validator {:a 2 :b 3})))
+      (is (= (sut/validation-error [:a :missing] nil)
+             (sut/validate validator {})))))
   (testing "nested"
     (is (= {:a {:aa 2 :ab 3}
             :b 5}
