@@ -33,7 +33,7 @@
   {::success v})
 
 (defn success-value? [v]
-  (some? (::success v)))
+  (and (associative? v) (contains? v ::success)))
 
 (defn extract-success-val [v]
   (::success v))
