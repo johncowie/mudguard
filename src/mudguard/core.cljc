@@ -48,6 +48,11 @@
       (throw (ex-info "Validation failed." r))
       v)))
 
+(defn check [validator v]
+  (let [res (validate validator v)]
+    (when (error? res)
+      res)))
+
 (defrecord NoOpValidator []
   IValidator
   (validate [_ v]
