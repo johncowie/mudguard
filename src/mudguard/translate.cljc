@@ -41,7 +41,8 @@
     (->> (for [path paths]
            [(drop-last path) (find-translation path translations)])
          (group-by first)
-         (map-over-vals (partial map second)))))
+         (map-over-vals (partial map second))
+         (map-over-keys vec))))
 
 (defn- add-error-msg [m [[path-f & path-r] messages]]
   (cond (and (empty? m) (nil? path-f))
