@@ -298,21 +298,19 @@
          (reduce group no-op-validator)
          (set-strictness strict-mode? unwrapped-keys))))
 
-(extend-type clojure.lang.PersistentArrayMap
+(extend-type clojure.lang.APersistentMap
   IValidator
   (validate [self data]
     (-> self construct-map-validator (validate data)))
   (possible-errors [self]
     (-> self construct-map-validator possible-errors)))
 
-(extend-type clojure.lang.PersistentVector
+(extend-type clojure.lang.APersistentVector
   IValidator
   (validate [self data]
     (-> self first each (validate data)))
   (possible-errors [self]
     (-> self first each possible-errors)))
-
-
 
 
 (def Int int?)
@@ -331,4 +329,7 @@
 ;; - maybe at-any? required?
 ;; - bunch of default validators
 
+
+(defn maybe [validator]
+  (one-of Nil validator))
 
