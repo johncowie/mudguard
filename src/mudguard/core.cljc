@@ -46,7 +46,7 @@
   (let [r (validate validator v)]
     (if (error? r)
       (throw (ex-info "Validation failed." r))
-      v)))
+      r)))
 
 (defn check [validator v]
   (let [res (validate validator v)]
@@ -317,6 +317,7 @@
 (def Bool boolean?)
 (def Str string?)
 (def Nil nil?)
+(def Keyword keyword?)
 (def Any any?)
 
 (def NotBlank (predicate :not-blank (complement str/blank?)))
