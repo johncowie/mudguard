@@ -12,7 +12,7 @@
       (is (= (sut/sample-error [:int?] {})
              (sut/possible-errors validator))))))
 
-(deftest parser-test
+(deftest parser-validator-test
   (let [parser (sut/validator :parse-int {}
                               (fn [_ v]
                                 (sut/success-value (Integer/parseInt v))))]
@@ -23,6 +23,20 @@
     (testing "possible-errors"
       (is (= (sut/sample-error [:parse-int] {})
              (sut/possible-errors parser))))))
+
+(deftest parser-test
+  (testing "can use the parser helper function for creating simple parsers"
+    (let [parser (sut/parser :parse-boolean (fn [s]
+                                              (case s
+                                                "true" true
+                                                "false" false
+                                                nil)))]
+      (is (= true
+              (sut/validate parser "true")))
+      (is (= false
+             (sut/validate parser "false")))
+      (is (= (sut/validation-error [:parse-boolean] "blah")
+             (sut/validate parser "blah"))))))
 
 (deftest at-test
   (testing "mandatory"

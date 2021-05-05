@@ -111,8 +111,9 @@
 
 (defn parser [id parser-fn]
   (validator id {} (fn [_ v]
-                     (when-let [parsed (parser-fn v)]
-                       (success-value parsed)))))
+                     (let [parsed (parser-fn v)]
+                       (when-not (nil? parsed)
+                         (success-value parsed))))))
 
 (extend-type IFn
   IValidator
