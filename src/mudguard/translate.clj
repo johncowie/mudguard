@@ -1,5 +1,6 @@
 (ns mudguard.translate
-  (:require [mudguard.core :as core]))
+  (:require [mudguard.core :as core]
+            [mudguard.result :as r]))
 
 (defn coerce-to-vec [x]
   (if (coll? x)
@@ -33,8 +34,8 @@
 
 (defn- error-paths [errors]
   (->> errors
-       ::core/errors
-       (map ::core/id)))
+       ::r/errors
+       (map ::r/id)))
 
 (defn translate-errors [translations errors]
   (let [paths (error-paths errors)]
@@ -61,11 +62,11 @@
        (reduce add-error-msg {})))
 
 (defn untranslatable-errors [translations errors]
-  (let [error-list (::core/errors errors)
+  (let [error-list (::r/errors errors)
         missing-translations (->> error-list
-                                  (remove (fn [e] (find-translation (::core/id e) translations))))]
+                                  (remove (fn [e] (find-translation (::r/id e) translations))))]
     (when-not (empty? missing-translations)
-      {::core/errors missing-translations})))
+      {::r/errors missing-translations})))
 
 (defn missing-translations [translations validator]
   (some->> validator
