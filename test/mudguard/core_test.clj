@@ -32,7 +32,7 @@
                                                 "false" false
                                                 nil)))]
       (is (= true
-              (sut/validate parser "true")))
+             (sut/validate parser "true")))
       (is (= false
              (sut/validate parser "false")))
       (is (= (sut/validation-error [:parse-boolean] "blah")
@@ -159,18 +159,18 @@
 
 (deftest map-test
   (testing "can use clojure map as validator"
-    (let [validator {:a int? :b keyword?}]
-      (is (= {:a 1 :b :keyword}
-             (sut/validate validator {:a 1 :b :keyword})))
-      (is (= (sut/validation-errors
-               (sut/validation-error [:a :clojure.core/int?] "bill")
-               (sut/validation-error [:b :clojure.core/keyword?] "ted"))
-             (sut/validate validator {:a "bill" :b "ted"})))
-      (is (= (sut/validation-error [:invalid-keys] {:a 1 :b :keyword :c 3} {:keys [:a :b]}) ;; TODO capture the invalid keys found
-             (sut/validate validator {:a 1 :b :keyword :c 3})))))
+      (let [validator {:a sut/Int :b sut/Keyword}]
+        (is (= {:a 1 :b :keyword}
+               (sut/validate validator {:a 1 :b :keyword})))
+        (is (= (sut/validation-errors
+                 (sut/validation-error [:a :clojure.core/int?] "bill")
+                 (sut/validation-error [:b :clojure.core/keyword?] "ted"))
+               (sut/validate validator {:a "bill" :b "ted"})))
+        (is (= (sut/validation-error [:invalid-keys] {:a 1 :b :keyword :c 3} {:keys [:a :b]}) ;; TODO capture the invalid keys found
+               (sut/validate validator {:a 1 :b :keyword :c 3})))))
   (testing "can specify optional keys"
-    (let [validator {(sut/optional-key :a) int?
-                     :b                    int?}]
+    (let [validator {(sut/optional-key :a) sut/Int
+                     :b                    sut/Int}]
       (is (= {:a 1 :b 2}
              (sut/validate validator {:a 1 :b 2})))
       (is (= (sut/validation-error [:b :missing] nil)
@@ -180,7 +180,7 @@
       (is (= (sut/validation-error [:a :clojure.core/int?] "blah")
              (sut/validate validator {:a "blah" :b 3})))))
   (testing "can specify any-key"
-    (let [validator {:a int? sut/any-key sut/Any}]
+    (let [validator {:a sut/Int sut/any-key sut/Any}]
       (is (= {:a 1}
              (sut/validate validator {:a 1})))
       (is (= {:a 2 :b 3}
@@ -191,20 +191,20 @@
     (is (= {:a {:aa 2 :ab 3}
             :b 5}
            (sut/validate
-             {:a {:aa int? :ab int?}
-              :b any?}
+             {:a {:aa sut/Int :ab sut/Int}
+              :b sut/Any}
              {:a {:aa 2 :ab 3}
               :b 5})))
     (is (= (sut/validation-error [:a :aa :missing] nil)
            (sut/validate
-             {:a {:aa int? (sut/optional-key :ab) int?}
-              :b any?}
+             {:a {:aa sut/Int (sut/optional-key :ab) sut/Int}
+              :b sut/Any}
              {:a {}
               :b 5})))))
 
 (deftest col-test
   (testing "can use clojure vector as validator"
-    (let [validator [{:a int?}]]
+    (let [validator [{:a sut/Int}]]
       (is (= [{:a 1} {:a 2}]
              (sut/validate validator [{:a 1} {:a 2}])))
       (is (= (sut/validation-errors
