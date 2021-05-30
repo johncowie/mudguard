@@ -33,6 +33,7 @@
 (def Nil nil?)
 (def Keyword keyword?)
 (def Any any?)
+;; TODO specify default generators here?
 
 (def NotBlank (predicate :not-blank (complement str/blank?)))
 ;; TODO

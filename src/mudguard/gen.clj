@@ -1,0 +1,147 @@
+(ns mudguard.gen
+  (:require [mudguard.tree :as t]
+            [mudguard.core :as c]
+            [clojure.test.check.generators :as g]
+            [mudguard.result :as r]))
+
+;; Generator logic
+;; If generator use generated value
+;; If function then apply function to generated value
+
+(defrecord IdWalker []
+  t/TreeWalker
+  (-leaf [this id vfn constraints]
+    )
+  (-at [this id key validator optional?]
+    )
+  (-chain [this validatorA validatorB]
+    )
+  (-group [this validatorA validatorB]
+    )
+  (-each [this validator]
+    )
+  (-one-of [this validatorA validatorB]
+    ))
+
+(defn get-id [validator]
+  (t/validator-eval validator (IdWalker.)))
+
+(defn validator-to-pred [validator]
+  (fn [x]
+    (not (r/error? (t/validate validator x)))))
+
+(defn such-that [id pred gen]
+  (g/such-that pred
+               gen
+               {:max-tries 10
+                :ex-fn     (fn [m] (ex-info "Couldn't gen value for validator." (merge m {:id      id
+                                                                                          :example (first (g/sample gen))})))}))
+
+(defn look-up-lib [generator-lib validator]
+  (let [id (:id validator)]
+    (when-let [v (get generator-lib id)]
+      (if (fn? v)
+        (let [f (v validator)]
+          {::gen g/any
+           ::fn  f})
+        {::gen v}))))
+
+(defn- validator-gen [id vfn constraints generator-lib]
+  (let [validator (t/validator id constraints vfn)]
+    (if-let [generator (look-up-lib generator-lib validator)]
+      generator
+      (let [pred (validator-to-pred validator)]
+        {::gen (such-that id pred g/any)}))))
+
+(defn- at-gen [tw key validator]
+  (let [{::keys [gen]} (t/validator-eval validator tw)
+        conformer (fn [m]
+                    (g/fmap (fn [v] (assoc m key v)) gen))]
+    {::gen (g/bind (g/map g/any g/any) conformer)
+     ::fn  conformer}))
+
+(defn opt-bind-fn [f]
+  "Sometimes bind f to generator, sometimes just return generator"
+  (fn [v]
+    (g/bind g/boolean #(if % (f v) (g/return v)))))
+
+(defn- at-opt-gen [tw key validator]
+  (let [{atFn ::fn} (at-gen tw key validator)
+        conformer (opt-bind-fn atFn)]
+    {::gen (g/bind (g/map g/any g/any) conformer)
+     ::fn  conformer}))
+
+(defn- chain-gen [tw validatorA validatorB generator-lib]
+  "Generate a value for conforms to both validatorA and validatorB"
+  (let [{genA ::gen} (or (look-up-lib generator-lib validatorA)
+                         (t/validator-eval validatorA tw))
+        {fnB ::fn} (or (t/validator-eval validatorB tw)
+                       (look-up-lib generator-lib validatorB))
+        parseA #(c/validate validatorA %)]
+    (if fnB
+      {::gen (g/bind genA fnB)}
+      (let [predB (validator-to-pred validatorB)]
+        {::gen (such-that (get-id validatorB) (comp predB parseA) genA)}))))
+;; TODO need id and way to look up value from generator lib
+;; get ID of first validator
+;; see if there's a generator in the lib
+;; try running through the pred
+;; if it can't gen a value, then request a value that works for both validator IDs
+
+
+(defn- each-gen
+  "Generate a list of validators"
+  [tw validator]
+  (let [{::keys [gen]} (t/validator-eval validator tw)]
+    {::gen (g/vector gen)}))
+
+(defn- one-of-gen
+  "Generate for one of the two validators"
+  [tw validatorA validatorB]
+  (let [{genA ::gen} (t/validator-eval validatorA tw)
+        {genB ::gen} (t/validator-eval validatorB tw)]
+    {::gen (g/one-of [genA genB])}))
+
+(defrecord GenWalker [generator-lib]
+  t/TreeWalker
+  (-leaf [_this id vfn constraints]
+    (validator-gen id vfn constraints generator-lib))
+  (-at [this _id key validator optional?]
+    (if optional?
+      (at-opt-gen this key validator)
+      (at-gen this key validator)))
+  (-chain [this validatorA validatorB]
+    (chain-gen this validatorA validatorB generator-lib))
+  (-group [this validatorA validatorB]
+    (chain-gen this validatorA validatorB generator-lib))
+  (-each [this validator]
+    (each-gen this validator))
+  (-one-of [this validatorA validatorB]
+    (one-of-gen this validatorA validatorB)))
+
+(def default-generators
+  {:clojure.core/int?     g/small-integer
+   :clojure.core/string?  g/string
+   :clojure.core/boolean? g/boolean
+   ::t/invalid-keys       (fn [validator]
+                            (fn [v]
+                              (let [{:keys [keys]} (t/get-constraints validator)]
+                                (g/return (select-keys v keys)))))
+   })
+
+(defn generator
+  ([validator]
+   (generator validator {}))
+  ([validator override-generators]
+   (let [generators (merge default-generators override-generators)]
+     (::gen (t/validator-eval validator (GenWalker. generators))))))
+
+;; TODO id walker?
+;; TOOD parsing???
+;; What to do if lib generator produces invalid values?
+
+;; Things to fix
+;;   Create extra keys if in 'loose-mode'
+;;   Constraints passed to conformer fn
+;;   Conformer for invalid validator
+;;   Getting ID

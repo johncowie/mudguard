@@ -159,15 +159,15 @@
 
 (deftest map-test
   (testing "can use clojure map as validator"
-      (let [validator {:a sut/Int :b sut/Keyword}]
-        (is (= {:a 1 :b :keyword}
-               (sut/validate validator {:a 1 :b :keyword})))
-        (is (= (sut/validation-errors
-                 (sut/validation-error [:a :clojure.core/int?] "bill")
-                 (sut/validation-error [:b :clojure.core/keyword?] "ted"))
-               (sut/validate validator {:a "bill" :b "ted"})))
-        (is (= (sut/validation-error [:invalid-keys] {:a 1 :b :keyword :c 3} {:keys [:a :b]}) ;; TODO capture the invalid keys found
-               (sut/validate validator {:a 1 :b :keyword :c 3})))))
+    (let [validator {:a sut/Int :b sut/Keyword}]
+      (is (= {:a 1 :b :keyword}
+             (sut/validate validator {:a 1 :b :keyword})))
+      (is (= (sut/validation-errors
+               (sut/validation-error [:a :clojure.core/int?] "bill")
+               (sut/validation-error [:b :clojure.core/keyword?] "ted"))
+             (sut/validate validator {:a "bill" :b "ted"})))
+      (is (= (sut/validation-error [:invalid-keys] {:a 1 :b :keyword :c 3} {:keys [:a :b]}) ;; TODO capture the invalid keys found
+             (sut/validate validator {:a 1 :b :keyword :c 3})))))
   (testing "can specify optional keys"
     (let [validator {(sut/optional-key :a) sut/Int
                      :b                    sut/Int}]
@@ -200,7 +200,13 @@
              {:a {:aa sut/Int (sut/optional-key :ab) sut/Int}
               :b sut/Any}
              {:a {}
-              :b 5})))))
+              :b 5}))))
+  (testing "possible errors"
+    (is (= (sut/validation-errors
+             (sut/sample-error [:invalid-keys] {:keys [:a]})
+             (sut/sample-error [:a :missing])
+             (sut/sample-error [:a :clojure.core/int?]))
+           (sut/possible-errors {:a sut/Int})))))
 
 (deftest col-test
   (testing "can use clojure vector as validator"
