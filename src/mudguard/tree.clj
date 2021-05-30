@@ -9,6 +9,7 @@
   (-at [this id key validator optional?])
   (-chain [this validatorA validatorB])
   (-group [this validatorA validatorB])
+  (-map [this keyValidator valValidator])
   (-each [this validator])
   (-one-of [this validatorA validatorB]))
 
@@ -70,6 +71,7 @@
                            (r/errors-at i v)
                            (conj acc v)))) []))
         (r/validation-error [:not-collection] v))))
+  (-map [this keyValidator valValidator])
   (-one-of [this validatorA validatorB]
     (fn [v]
       (let [rA (tree-validate this validatorA v)]
@@ -95,6 +97,7 @@
     (r/join-errors
       (validator-eval validatorA this)
       (validator-eval validatorB this)))
+  (-map [this validatorKey validatorVal])
   (-each [this validator]
     (r/join-errors
       (r/sample-error [:not-collection])
@@ -225,9 +228,6 @@
 (defn possible-errors [validator]
   (validator-eval validator (PossibleErrorsWalker.)))
 
-;(defn generator [validator]
-;  (validator-eval validator (GeneratorWalker. )))
-
 
 ;; Collection shenanigans
 
@@ -298,6 +298,35 @@
        keys
        (map unwrap-key)
        (remove #{any-key})))
+
+(defn- specific-key-validator [m]
+  (->>
+    (map (fn [[k v]]
+           (cond
+             (is-optional-key? k) (optional-key-validator k v)
+             (is-required-key? k) (required-key-validator k v)
+             (satisfies? TreeEval k) nil
+             :else (at k v))))
+    (remove nil?)
+    (reduce group)))
+
+(defn entry-validator [keys-to-ignore key-validator val-validator]
+
+  )
+
+(defn entries-validator [m]
+  (let [keys-to-ignore (->> m
+                            (remove (comp #(satisfies? TreeEval %) first))
+                            )
+        [keyv valv] (->> m  ;; TODO (+ throw error if more than one
+                         (filter (comp #(satisfies? TreeEval %) first))
+                         first)]
+    (validator :entry {} (fn [constraints v]
+                           ;;
+                           ))
+    )
+
+  )
 
 (defn- construct-map-validator [m]
   (let [strict-mode? (not (contains? m any-key))
