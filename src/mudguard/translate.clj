@@ -22,24 +22,30 @@
          [k (f v)])
        (into {})))
 
-(defn find-translation [error-path translations]
+(defn create-translation [error translation-or-f]
+  (if (fn? translation-or-f)
+    (translation-or-f error)
+    translation-or-f))
+
+(defn find-translation [error-path error translations]
   (->> translations
        (map-over-keys coerce-to-vec)
        (sort-by (comp count first))
        reverse                                              ;; TODO optimise, do this upfront
        (filter (comp (partial matches-translation? error-path) first))
        (map second)
-       first))
+       first
+       (create-translation error)))
 
 (defn- error-paths [errors]
   (->> errors
        ::core/errors
-       (map ::core/id)))
+       (map (juxt ::core/id identity))))
 
 (defn translate-errors [translations errors]
-  (let [paths (error-paths errors)]
-    (->> (for [path paths]
-           [(drop-last path) (find-translation path translations)])
+  (let [paths-and-errors (error-paths errors)]
+    (->> (for [[path error] paths-and-errors]
+           [(drop-last path) (find-translation path error translations)])
          (group-by first)
          (map-over-vals (partial map second))
          (map-over-keys vec))))
@@ -63,7 +69,7 @@
 (defn untranslatable-errors [translations errors]
   (let [error-list (::core/errors errors)
         missing-translations (->> error-list
-                                  (remove (fn [e] (find-translation (::core/id e) translations))))]
+                                  (remove (fn [e] (find-translation (::core/id e) e translations))))]
     (when-not (empty? missing-translations)
       {::core/errors missing-translations})))
 

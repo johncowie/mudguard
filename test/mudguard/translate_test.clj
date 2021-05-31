@@ -63,11 +63,21 @@
                  (core/sample-error [:int?])
                  (core/sample-error [:not-nil?]))))))
 
-    (testing "Indicies in paths are ignored")
+    (testing "Indicies in paths are ignored")               ;; TODO
 
-    (testing "Context keys can be templated into message")
+    (testing "Context keys can be templated into message"
+      (is (= {[:a] ["Failed with value bob"]
+              [:b] ["B failed with value bill"]}
+             (sut/translate-errors
+               {:int?      (fn [{::core/keys [input]}]
+                             (format "Failed with value %s" input))
+                [:b :int?] (fn [{::core/keys [input]}]
+                             (format "B failed with value %s" input))}
+               (core/validation-errors
+                 (core/validation-error [:a :int?] "bob")
+                 (core/validation-error [:b :int?] "bill"))))))
 
-    (testing "Index can be templated into message")
+    (testing "Index can be templated into message")         ;; TODO
     ))
 
 (deftest restructure-messages-test
