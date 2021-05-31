@@ -159,7 +159,7 @@
                (sut/validation-error [:a :clojure.core/int?] "bill")
                (sut/validation-error [:b :clojure.core/keyword?] "ted"))
              (sut/validate validator {:a "bill" :b "ted"})))
-      (is (= (sut/validation-error [2 :-key :mudguard.tree/invalid-key] :c {:keys [:a :b]})
+      (is (= (sut/validation-error [2 :-key :mudguard.core/valid-key] :c {:keys [:a :b]})
              (sut/validate validator {:a 1 :b :keyword :c 3})))))
   (testing "can specify optional keys"
     (let [validator {(sut/optional-key :a) sut/Int
@@ -199,7 +199,8 @@
              (sut/sample-error [:clojure.core/associative?])
              (sut/sample-error [:a :missing])
              (sut/sample-error [:a :clojure.core/int?])
-             (sut/sample-error [:-key :mudguard.tree/invalid-key] {:keys [:a]}))
+             (sut/sample-error [:clojure.core/coll?])
+             (sut/sample-error [:-key :mudguard.core/valid-key] {:keys [:a]}))
            (sut/possible-errors {:a sut/Int})))))
 
 (deftest col-test
