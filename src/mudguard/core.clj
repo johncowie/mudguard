@@ -221,6 +221,9 @@
                (when (contains? (set valid-keys) k)
                  (success-value k)))))
 
+(defn is-validator? [v]
+  (satisfies? TreeEval v))
+
 (defn entries-validator [m]
   ;; TODO (+ throw error if more than one generic key/val validator pair
   (let [valid-keys (->> m

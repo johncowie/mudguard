@@ -35,7 +35,7 @@
   (-entry [this key-validator val-validator]
     (join-ids this ":" key-validator val-validator))
   (-map [this validator-map]
-    ;; reuse the logic below for specific key-val stuff
+    ;; TODO
     )
   (-one-of [this validatorA validatorB]
     (join-ids this "|" validatorA validatorB)))
@@ -119,6 +119,39 @@
         genB (c/validator-eval validatorB tw)]
     (g/one-of [genA genB])))
 
+(defn- gen-opt-key [map-gen key v-gen]
+  (g/let [m map-gen
+          v v-gen
+          b g/boolean]
+         (if b
+           (assoc m key v)
+           m)))
+
+(defn gen-key [map-gen key v-gen]
+  (g/let [m map-gen
+          v v-gen]
+         (assoc m key v)))
+
+(defn gen-entries [map-gen key-generator val-generator]
+  (g/let [m1 (g/map key-generator val-generator)
+          m2 map-gen]
+         (merge m1 m2)))
+
+(defn- map-gen
+  [tw validator-map]
+  ;; reuse the logic below for specific key-val stuff
+  (->> validator-map
+       (reduce (fn [g [k v]]
+                 (let [val-gen (c/validator-eval v tw)]
+                   (cond (c/is-required-key? k)
+                         (gen-key g (c/unwrap-key k) val-gen)
+                         (c/is-optional-key? k)
+                         (gen-opt-key g (c/unwrap-key k) val-gen)
+                         (c/is-validator? k)
+                         (gen-entries g (c/validator-eval k tw) val-gen)
+                         :else (gen-key g k val-gen))))
+               (g/return {}))))
+
 (defrecord GenWalker [generator-lib]
   c/TreeWalker
   (-mempty [_this]
@@ -141,7 +174,9 @@
   (-fmap [this validator f]
     (fmap-gen this validator f))
   (-one-of [this validatorA validatorB]
-    (one-of-gen this validatorA validatorB)))
+    (one-of-gen this validatorA validatorB))
+  (-map [this validator-map]
+    (map-gen this validator-map)))
 
 (def default-generators
   {:clojure.core/int?     g/small-integer
@@ -149,7 +184,6 @@
    :clojure.core/boolean? g/boolean
    :clojure.core/keyword? g/keyword
    :clojure.core/nil?     (g/return nil)
-   ::c/valid-key          g/any
    })
 
 (defn generator
