@@ -3,7 +3,7 @@
             [clojure.test.check.generators :as g]
             [clojure.string :as str]))
 
-(def max-tries 10)
+(def max-tries 5)
 
 (defn join-ids [tw separator validatorA validatorB]
   (->> [validatorA validatorB]
