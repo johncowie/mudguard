@@ -3,10 +3,6 @@
             [clojure.test.check.generators :as g]
             [clojure.string :as str]))
 
-;; Generator logic
-;; If generator use generated value
-;; If function then apply function to generated value
-
 (defn join-ids [tw separator validatorA validatorB]
   (->> [validatorA validatorB]
        (map #(c/validator-eval % tw))
@@ -17,16 +13,16 @@
 
 (defrecord IdWalker []
   c/TreeWalker
-  (-mempty [this]
-    nil)
-  (-leaf [this id vfn constraints]
+  (-mempty [_this]
+    :clojure.core/any?)
+  (-leaf [_this id _vfn _constraints]
     id)
-  (-at [this id key validator optional?]
+  (-at [_this id _key _validator _optional?]
     id)
   (-chain [this validatorA validatorB]
-    (join-ids this ">" validatorA validatorB))
+    (c/validator-eval validatorB this))
   (-group [this validatorA validatorB]
-    (join-ids this "+" validatorA validatorB))
+    (c/validator-eval validatorB this))
   (-fmap [this validator _f]
     (c/validator-eval validator this))
   (-each [this validator]
@@ -34,8 +30,8 @@
   ;; TODO rename to tuple?
   (-entry [this key-validator val-validator]
     (join-ids this ":" key-validator val-validator))
-  (-map [this validator-map]
-    ;; TODO
+  (-map [_this _validator-map]
+    :-map
     )
   (-one-of [this validatorA validatorB]
     (join-ids this "|" validatorA validatorB)))
@@ -59,7 +55,7 @@
   (g/such-that predB
                genA
                {:max-tries 10
-                :ex-fn     (fn [m] (ex-info (format "Couldn't gen value for validator %s that also satisfies %s" idA idB)
+                :ex-fn     (fn [m] (ex-info (format "Couldn't generate a value for validator %s that also satisfies %s" idA idB)
                                             (merge m {:idA     idA
                                                       :idB     idB
                                                       :example (first (g/sample genA))})))}))
@@ -90,16 +86,13 @@
   (let [vAId (get-generator-id validatorA)
         vBId (get-generator-id validatorB)
         genA (or (look-up-lib generator-lib validatorA)
-                         (c/validator-eval validatorA tw))
+                 (c/validator-eval validatorA tw))
+        genB (look-up-lib generator-lib validatorB)
         parseA #(c/validate validatorA %)]
-    (let [predB (validator-to-pred validatorB)]
-      (such-that-both vAId vBId genA (comp predB parseA)))))
-;; TODO need id and way to look up value from generator lib
-;; get ID of first validator
-;; see if there's a generator in the lib
-;; try running through the pred
-;; if it can't gen a value, then request a value that works for both validator IDs
-
+    (if genB
+      genB
+      (let [predB (validator-to-pred validatorB)]
+        (such-that-both vAId vBId genA (comp predB parseA))))))
 
 (defn- each-gen
   "Generate a list of validators"
@@ -139,7 +132,6 @@
 
 (defn- map-gen
   [tw validator-map]
-  ;; reuse the logic below for specific key-val stuff
   (->> validator-map
        (reduce (fn [g [k v]]
                  (let [val-gen (c/validator-eval v tw)]
@@ -191,19 +183,8 @@
    (generator validator {}))
   ([validator override-generators]
    (let [generators (merge default-generators override-generators)]
-     (c/validator-eval validator (GenWalker. generators)))))
-
-;; TODO id walker?
-;; TOOD parsing???
-;; What to do if lib generator produces invalid values? ;; FIXME deal with this next..
-
-;; FIXME This example fail because seven's aren't being produced
-;(g/sample (generator {:a                  c/Int
-;                      :b                  (c/predicate :seven #(= % 7))
-;                      (c/optional-key :c) c/Int
-;                      (c/optional-key :d) c/Nil
-;                      :e                  [{:e1 c/Str
-;                                            :e2 c/Str}]}))
-
-;; Things to fix
-;;   Getting ID
+     (g/fmap
+       (fn [v]
+         (c/throw-if-invalid validator v "Generated value is invalid - check that your custom generators always produce valid values")
+         v)
+       (c/validator-eval validator (GenWalker. generators))))))

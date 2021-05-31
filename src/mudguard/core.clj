@@ -381,6 +381,15 @@
   (let [validator-fn (validator-eval validator (ValidatorWalker.))]
     (validator-fn data)))
 
+(defn throw-if-invalid
+  ([validator data]
+   (throw-if-invalid validator data "Validation failed."))
+  ([validator data msg]
+   (let [res (validate validator data)]
+     (if (error? res)
+       (throw (ex-info msg res))
+       res))))
+
 (defn possible-errors [validator]
   (validator-eval validator (PossibleErrorsWalker.)))
 
@@ -407,15 +416,13 @@
 ;; TODO specify default generators here?
 
 (def NotBlank (predicate :not-blank (complement str/blank?)))
+(defn maybe [validator] (one-of Nil validator))
+
 ;; TODO
 ;(defn matches-regex [regex] Any)
 
 ;; TODO
-;; - optional value
-;; - can specify if extra keys are tolerated
-;; - maybe at-any? required?
 ;; - bunch of default validators
-;; - map of type..
 ;; - equals value
 
 ;; TODO roadmap
@@ -423,6 +430,3 @@
 ;; Pre-compile
 ;; Simplify map shenanigans
 ;; Swagger
-
-(defn maybe [validator]
-  (one-of Nil validator))
