@@ -56,7 +56,7 @@
                  (sut/sample-error [:a :parse-int] {}))
                (sut/possible-errors validator))))))
   (testing "optional"
-    (let [validator (sut/opt-at :a int?)]
+    (let [validator (sut/opt-at :a sut/Int)]
       (is (= (sut/validation-error [:a :clojure.core/int?] "a" {})
              (sut/validate validator {:a "a"})))
       (is (= {:a 1}
@@ -126,16 +126,16 @@
              (sut/validation-error [2 :parse-int] "B" {}))
            (sut/validate validator ["A" "2" "B"])))
     (testing "error if value is not a sequence"
-      (is (= (sut/validation-error [:not-collection] :bob)
+      (is (= (sut/validation-error [:clojure.core/coll?] :bob)
              (sut/validate validator :bob)))))
   (testing "possible-errors"
     (is (= (sut/validation-errors
-             (sut/sample-error [:not-collection])
+             (sut/sample-error [:clojure.core/coll?])
              (sut/sample-error [:clojure.core/int?]))
-           (sut/possible-errors (sut/each int?))))))
+           (sut/possible-errors (sut/each sut/Int))))))
 
 (deftest one-of-test
-  (let [validator (sut/one-of int? string? boolean?)]
+  (let [validator (sut/one-of sut/Int sut/Str sut/Bool)]
     (is (= 1
            (sut/validate validator 1)))
     (is (= "blah"
@@ -146,28 +146,21 @@
            (sut/validate validator :keyword))))
   (testing "possible-errors, can only fail on last validator"
     (is (= (sut/sample-error [:clojure.core/boolean?])
-           (sut/possible-errors (sut/one-of int? string? boolean?))))
+           (sut/possible-errors (sut/one-of sut/Int sut/Str sut/Bool))))
     (is (= (sut/sample-error [:clojure.core/int?])
-           (sut/possible-errors (sut/one-of boolean? string? int?))))))
-
-(deftest function-test
-  (testing "can use predicate function as validator"
-    (is (= 1
-           (sut/validate int? 1)))
-    (is (= (sut/validation-error [:clojure.core/int?] "")
-           (sut/validate int? "")))))
+           (sut/possible-errors (sut/one-of sut/Bool sut/Str sut/Int))))))
 
 (deftest map-test
   (testing "can use clojure map as validator"
-      (let [validator {:a sut/Int :b sut/Keyword}]
-        (is (= {:a 1 :b :keyword}
-               (sut/validate validator {:a 1 :b :keyword})))
-        (is (= (sut/validation-errors
-                 (sut/validation-error [:a :clojure.core/int?] "bill")
-                 (sut/validation-error [:b :clojure.core/keyword?] "ted"))
-               (sut/validate validator {:a "bill" :b "ted"})))
-        (is (= (sut/validation-error [:invalid-keys] {:a 1 :b :keyword :c 3} {:keys [:a :b]}) ;; TODO capture the invalid keys found
-               (sut/validate validator {:a 1 :b :keyword :c 3})))))
+    (let [validator {:a sut/Int :b sut/Keyword}]
+      (is (= {:a 1 :b :keyword}
+             (sut/validate validator {:a 1 :b :keyword})))
+      (is (= (sut/validation-errors
+               (sut/validation-error [:a :clojure.core/int?] "bill")
+               (sut/validation-error [:b :clojure.core/keyword?] "ted"))
+             (sut/validate validator {:a "bill" :b "ted"})))
+      (is (= (sut/validation-error [2 :-key :mudguard.core/valid-key] :c {:keys [:a :b]})
+             (sut/validate validator {:a 1 :b :keyword :c 3})))))
   (testing "can specify optional keys"
     (let [validator {(sut/optional-key :a) sut/Int
                      :b                    sut/Int}]
@@ -180,7 +173,7 @@
       (is (= (sut/validation-error [:a :clojure.core/int?] "blah")
              (sut/validate validator {:a "blah" :b 3})))))
   (testing "can specify any-key"
-    (let [validator {:a sut/Int sut/any-key sut/Any}]
+    (let [validator {:a sut/Int sut/Any sut/Any}]
       (is (= {:a 1}
              (sut/validate validator {:a 1})))
       (is (= {:a 2 :b 3}
@@ -200,7 +193,15 @@
              {:a {:aa sut/Int (sut/optional-key :ab) sut/Int}
               :b sut/Any}
              {:a {}
-              :b 5})))))
+              :b 5}))))
+  (testing "possible errors"
+    (is (= (sut/validation-errors
+             (sut/sample-error [:clojure.core/associative?])
+             (sut/sample-error [:a :missing])
+             (sut/sample-error [:a :clojure.core/int?])
+             (sut/sample-error [:clojure.core/coll?])
+             (sut/sample-error [:-key :mudguard.core/valid-key] {:keys [:a]}))
+           (sut/possible-errors {:a sut/Int})))))
 
 (deftest col-test
   (testing "can use clojure vector as validator"
