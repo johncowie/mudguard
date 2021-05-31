@@ -3,10 +3,10 @@
             [mudguard.core :as sut]))
 
 (defn valid? [validator val]
-  (not (sut/error? (sut/validate validator val))))
+  (not (sut/error? (sut/coerce validator val))))
 
 (defn invalid? [validator val]
-  (sut/error? (sut/validate validator val)))
+  (sut/error? (sut/coerce validator val)))
 
 (deftest NotBlank-test
   (is (valid? sut/NotBlank "bob"))

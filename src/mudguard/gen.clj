@@ -44,7 +44,7 @@
 
 (defn validator-to-pred [validator]
   (fn [x]
-    (not (c/error? (c/validate validator x)))))
+    (not (c/error? (c/coerce validator x)))))
 
 (defn such-that [id pred gen]
   (g/such-that pred
@@ -89,7 +89,7 @@
         genA (or (look-up-lib generator-lib validatorA)
                  (c/validator-eval validatorA tw))
         genB (look-up-lib generator-lib validatorB)
-        parseA #(c/validate validatorA %)]
+        parseA #(c/coerce validatorA %)]
     (if genB
       genB
       (let [predB (validator-to-pred validatorB)]
@@ -189,6 +189,6 @@
    (let [generators (merge default-generators override-generators)]
      (g/fmap
        (fn [v]
-         (c/throw-if-invalid validator v "Generated value is invalid - check that your custom generators always produce valid values")
+         (c/coerce-or-throw validator v "Generated value is invalid - check that your custom generators always produce valid values")
          v)
        (c/validator-eval validator (GenWalker. generators))))))

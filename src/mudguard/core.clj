@@ -377,18 +377,34 @@
     (let [validator (map-validator validator-map)]
       (validator-eval validator this))))
 
-(defn validate [validator data]
-  (let [validator-fn (validator-eval validator (ValidatorWalker.))]
+;; Validator functions
+
+(defn compile-validator [validator]
+  (validator-eval validator (ValidatorWalker.)))
+
+(defn coerce [validator data]
+  (let [validator-fn (compile-validator validator)]
     (validator-fn data)))
 
-(defn throw-if-invalid
+(defn coerce-or-throw
   ([validator data]
-   (throw-if-invalid validator data "Validation failed."))
+   (coerce-or-throw validator data "Validation failed."))
   ([validator data msg]
-   (let [res (validate validator data)]
+   (let [res (coerce validator data)]
      (if (error? res)
        (throw (ex-info msg res))
        res))))
+
+(defn check
+  [validator data]
+  (let [res (coerce validator data)]
+    (when (error? res)
+      res)))
+
+(defn validate
+  [validator data]
+  (coerce-or-throw validator data)
+  data)
 
 (defn possible-errors [validator]
   (validator-eval validator (PossibleErrorsWalker.)))

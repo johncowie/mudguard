@@ -5,9 +5,9 @@
 (deftest predicate-test
   (let [validator (sut/predicate :int? int?)]
     (is (= 1
-           (sut/validate validator 1)))
+           (sut/coerce validator 1)))
     (is (= (sut/validation-error [:int?] "bob" {})
-           (sut/validate validator "bob")))
+           (sut/coerce validator "bob")))
     (testing "possible errors"
       (is (= (sut/sample-error [:int?] {})
              (sut/possible-errors validator))))))
@@ -17,9 +17,9 @@
                               (fn [_ v]
                                 (sut/success-value (Integer/parseInt v))))]
     (is (= 1
-           (sut/validate parser "1")))
+           (sut/coerce parser "1")))
     (is (= (sut/validation-error [:parse-int] "bob" {})
-           (sut/validate parser "bob")))
+           (sut/coerce parser "bob")))
     (testing "possible-errors"
       (is (= (sut/sample-error [:parse-int] {})
              (sut/possible-errors parser))))))
@@ -32,11 +32,11 @@
                                                 "false" false
                                                 nil)))]
       (is (= true
-             (sut/validate parser "true")))
+             (sut/coerce parser "true")))
       (is (= false
-             (sut/validate parser "false")))
+             (sut/coerce parser "false")))
       (is (= (sut/validation-error [:parse-boolean] "blah")
-             (sut/validate parser "blah"))))))
+             (sut/coerce parser "blah"))))))
 
 (deftest at-test
   (testing "mandatory"
@@ -45,11 +45,11 @@
                                       (sut/success-value (Integer/parseInt v))))
           validator (sut/at :a int-parser)]
       (is (= (sut/validation-error [:a :parse-int] "a" {})
-             (sut/validate validator {:a "a"})))
+             (sut/coerce validator {:a "a"})))
       (is (= {:a 1}
-             (sut/validate validator {:a "1"})))
+             (sut/coerce validator {:a "1"})))
       (is (= (sut/validation-error [:a :missing] nil {})
-             (sut/validate validator {})))
+             (sut/coerce validator {})))
       (testing "possible-errors"
         (is (= (sut/validation-errors
                  (sut/sample-error [:a :missing] {})
@@ -58,11 +58,11 @@
   (testing "optional"
     (let [validator (sut/opt-at :a sut/Int)]
       (is (= (sut/validation-error [:a :clojure.core/int?] "a" {})
-             (sut/validate validator {:a "a"})))
+             (sut/coerce validator {:a "a"})))
       (is (= {:a 1}
-             (sut/validate validator {:a 1})))
+             (sut/coerce validator {:a 1})))
       (is (= {}
-             (sut/validate validator {})))
+             (sut/coerce validator {})))
       (testing "possible-errors"
         (is (= (sut/sample-error [:a :clojure.core/int?] {})
                (sut/possible-errors validator)))))))
@@ -75,13 +75,13 @@
                              (sut/at :b int-parser)
                              (sut/at :c int-parser))]
     (is (= {:a 1 :b 3 :c 5}
-           (sut/validate validator {:a "1" :b "3" :c "5"})))
+           (sut/coerce validator {:a "1" :b "3" :c "5"})))
     (is (= (sut/validation-errors
              (sut/validation-error [:a :parse-int] "blah" {})
              (sut/validation-error [:b :parse-int] "bleh" {}))
-           (sut/validate validator {:a "blah" :b "bleh" :c "8"})))
+           (sut/coerce validator {:a "blah" :b "bleh" :c "8"})))
     (is (= (sut/validation-error [:c :parse-int] "x" {})
-           (sut/validate validator {:a "1" :b "2" :c "x"})))
+           (sut/coerce validator {:a "1" :b "2" :c "x"})))
     (testing "possible-errors"
       (is (= (sut/validation-errors
                (sut/sample-error [:a :missing] {})
@@ -100,13 +100,13 @@
         >10 (sut/predicate :>10 #(> % 10))
         validator (sut/chain is-str int-parser >10)]
     (is (= 20
-           (sut/validate validator "20")))
+           (sut/coerce validator "20")))
     (is (= (sut/validation-error [:string?] 23 {})
-           (sut/validate validator 23)))
+           (sut/coerce validator 23)))
     (is (= (sut/validation-error [:parse-int] "bob" {})
-           (sut/validate validator "bob")))
+           (sut/coerce validator "bob")))
     (is (= (sut/validation-error [:>10] 5 {})
-           (sut/validate validator "5")))
+           (sut/coerce validator "5")))
     (testing "possible-failures"
       (is (= (sut/validation-errors
                (sut/sample-error [:string?] {})
@@ -120,14 +120,14 @@
                                     (sut/success-value (Integer/parseInt v))))
         validator (sut/each int-parser)]
     (is (= [1 2 3]
-           (sut/validate validator ["1" "2" "3"])))
+           (sut/coerce validator ["1" "2" "3"])))
     (is (= (sut/validation-errors
              (sut/validation-error [0 :parse-int] "A" {})
              (sut/validation-error [2 :parse-int] "B" {}))
-           (sut/validate validator ["A" "2" "B"])))
+           (sut/coerce validator ["A" "2" "B"])))
     (testing "error if value is not a sequence"
       (is (= (sut/validation-error [:clojure.core/coll?] :bob)
-             (sut/validate validator :bob)))))
+             (sut/coerce validator :bob)))))
   (testing "possible-errors"
     (is (= (sut/validation-errors
              (sut/sample-error [:clojure.core/coll?])
@@ -137,13 +137,13 @@
 (deftest one-of-test
   (let [validator (sut/one-of sut/Int sut/Str sut/Bool)]
     (is (= 1
-           (sut/validate validator 1)))
+           (sut/coerce validator 1)))
     (is (= "blah"
-           (sut/validate validator "blah")))
+           (sut/coerce validator "blah")))
     (is (= false
-           (sut/validate validator false)))
+           (sut/coerce validator false)))
     (is (= (sut/validation-error [:clojure.core/boolean?] :keyword {})
-           (sut/validate validator :keyword))))
+           (sut/coerce validator :keyword))))
   (testing "possible-errors, can only fail on last validator"
     (is (= (sut/sample-error [:clojure.core/boolean?])
            (sut/possible-errors (sut/one-of sut/Int sut/Str sut/Bool))))
@@ -154,42 +154,42 @@
   (testing "can use clojure map as validator"
     (let [validator {:a sut/Int :b sut/Keyword}]
       (is (= {:a 1 :b :keyword}
-             (sut/validate validator {:a 1 :b :keyword})))
+             (sut/coerce validator {:a 1 :b :keyword})))
       (is (= (sut/validation-errors
                (sut/validation-error [:a :clojure.core/int?] "bill")
                (sut/validation-error [:b :clojure.core/keyword?] "ted"))
-             (sut/validate validator {:a "bill" :b "ted"})))
+             (sut/coerce validator {:a "bill" :b "ted"})))
       (is (= (sut/validation-error [2 :-key :mudguard.core/valid-key] :c {:keys [:a :b]})
-             (sut/validate validator {:a 1 :b :keyword :c 3})))))
+             (sut/coerce validator {:a 1 :b :keyword :c 3})))))
   (testing "can specify optional keys"
     (let [validator {(sut/optional-key :a) sut/Int
                      :b                    sut/Int}]
       (is (= {:a 1 :b 2}
-             (sut/validate validator {:a 1 :b 2})))
+             (sut/coerce validator {:a 1 :b 2})))
       (is (= (sut/validation-error [:b :missing] nil)
-             (sut/validate validator {})))
+             (sut/coerce validator {})))
       (is (= {:b 3}
-             (sut/validate validator {:b 3})))
+             (sut/coerce validator {:b 3})))
       (is (= (sut/validation-error [:a :clojure.core/int?] "blah")
-             (sut/validate validator {:a "blah" :b 3})))))
+             (sut/coerce validator {:a "blah" :b 3})))))
   (testing "can specify any-key"
     (let [validator {:a sut/Int sut/Any sut/Any}]
       (is (= {:a 1}
-             (sut/validate validator {:a 1})))
+             (sut/coerce validator {:a 1})))
       (is (= {:a 2 :b 3}
-             (sut/validate validator {:a 2 :b 3})))
+             (sut/coerce validator {:a 2 :b 3})))
       (is (= (sut/validation-error [:a :missing] nil)
-             (sut/validate validator {})))))
+             (sut/coerce validator {})))))
   (testing "nested"
     (is (= {:a {:aa 2 :ab 3}
             :b 5}
-           (sut/validate
+           (sut/coerce
              {:a {:aa sut/Int :ab sut/Int}
               :b sut/Any}
              {:a {:aa 2 :ab 3}
               :b 5})))
     (is (= (sut/validation-error [:a :aa :missing] nil)
-           (sut/validate
+           (sut/coerce
              {:a {:aa sut/Int (sut/optional-key :ab) sut/Int}
               :b sut/Any}
              {:a {}
@@ -207,8 +207,8 @@
   (testing "can use clojure vector as validator"
     (let [validator [{:a sut/Int}]]
       (is (= [{:a 1} {:a 2}]
-             (sut/validate validator [{:a 1} {:a 2}])))
+             (sut/coerce validator [{:a 1} {:a 2}])))
       (is (= (sut/validation-errors
                (sut/validation-error [0 :a :clojure.core/int?] "X")
                (sut/validation-error [1 :a :missing] nil))
-             (sut/validate validator [{:a "X"} {} {:a 3}]))))))
+             (sut/coerce validator [{:a "X"} {} {:a 3}]))))))
