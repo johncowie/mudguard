@@ -3,7 +3,6 @@
             [mudguard.tree :as t]
             [mudguard.result :as r]))
 
-
 (def validation-errors r/validation-errors)
 (def validation-error r/validation-error)
 (def sample-error r/sample-error)
@@ -20,19 +19,18 @@
 
 (def optional-key t/optional-key)
 (def required-key t/required-key)
-(def any-key t/any-key)
 
 (def validate t/validate)
 (def validator t/validator)
 (def parser t/parser)
 (def possible-errors t/possible-errors)
 
-(def Int int?)
-(def Bool boolean?)
-(def Str string?)
-(def Nil nil?)
-(def Keyword keyword?)
-(def Any any?)
+(def Int (predicate :clojure.core/int? int?))
+(def Bool (predicate :clojure.core/boolean? boolean?))
+(def Str (predicate :clojure.core/string? string?))
+(def Nil (predicate :clojure.core/nil? nil?))
+(def Keyword (predicate :clojure.core/keyword? keyword?))
+(def Any (predicate :clojure.core/any? any?)) ;; TODO can't fail so should be no-op
 ;; TODO specify default generators here?
 
 (def NotBlank (predicate :not-blank (complement str/blank?)))

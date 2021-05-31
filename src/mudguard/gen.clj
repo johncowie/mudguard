@@ -25,9 +25,8 @@
     (join-ids this ">" validatorA validatorB))
   (-group [this validatorA validatorB]
     (join-ids this "+" validatorA validatorB))
-  (-map [this validatorA validatorB]
-    ;; TODO?
-    )
+  (-fmap [this validator _f]
+    (t/validator-eval validator this))
   (-each [this validator]
     (t/validator-eval validator this))
   (-one-of [this validatorA validatorB]
@@ -117,6 +116,11 @@
   (let [{::keys [gen]} (t/validator-eval validator tw)]
     {::gen (g/vector gen)}))
 
+(defn- fmap-gen
+  [tw validator f]
+  (let [{::keys [gen]} (t/validator-eval validator tw)]
+    {::gen (g/fmap f gen)}))
+
 (defn- one-of-gen
   "Generate for one of the two validators"
   [tw validatorA validatorB]
@@ -138,6 +142,8 @@
     (chain-gen this validatorA validatorB generator-lib))
   (-each [this validator]
     (each-gen this validator))
+  (-fmap [this validator f]
+    (fmap-gen this validator f))
   (-one-of [this validatorA validatorB]
     (one-of-gen this validatorA validatorB)))
 
@@ -167,7 +173,7 @@
 ;; TOOD parsing???
 ;; What to do if lib generator produces invalid values? ;; FIXME deal with this next..
 
-;; This example fail because seven's aren't being produced
+;; FIXME This example fail because seven's aren't being produced
 (g/sample (generator {:a                  c/Int
                       :b                  (c/predicate :seven #(= % 7))
                       (c/optional-key :c) c/Int

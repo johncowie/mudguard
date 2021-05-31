@@ -5,11 +5,13 @@
   (:import (clojure.lang APersistentVector APersistentMap IFn)))
 
 (defprotocol TreeWalker
+  (-mempty [this])
   (-leaf [this id vfn constraints])
   (-at [this id key validator optional?])
   (-chain [this validatorA validatorB])
   (-group [this validatorA validatorB])
-  (-map [this keyValidator valValidator])
+  (-entry [this key-validator val-validator])
+  (-fmap [this validator f])
   (-each [this validator])
   (-one-of [this validatorA validatorB]))
 
@@ -21,6 +23,8 @@
 
 (defrecord ValidatorWalker []
   TreeWalker
+  (-mempty [this]
+    identity)
   (-leaf [_this id vfn constraints]
     (fn [v]
       (try
@@ -58,20 +62,32 @@
           (tree-validate this validatorB rA)))))
   (-each [this validator]
     (fn [v]
-      (if (coll? v)
-        (->> v
-             (map (partial tree-validate this validator))
-             (map-indexed vector)
-             (reduce (fn [acc [i v]]
-                       (if (r/error? acc)
-                         (if (r/error? v)
-                           (r/join-errors acc (r/errors-at i v))
-                           acc)
-                         (if (r/error? v)
-                           (r/errors-at i v)
-                           (conj acc v)))) []))
-        (r/validation-error [:not-collection] v))))
-  (-map [this keyValidator valValidator])
+      (->> v
+           (map (partial tree-validate this validator))
+           (map-indexed vector)
+           (reduce (fn [acc [i v]]
+                     (if (r/error? acc)
+                       (if (r/error? v)
+                         (r/join-errors acc (r/errors-at i v))
+                         acc)
+                       (if (r/error? v)
+                         (r/errors-at i v)
+                         (conj acc v)))) []))))
+  (-entry [this key-validator val-validator]
+    (fn [[k v]]
+      (let [key-res (tree-validate this key-validator k)]
+        (if (r/error? key-res)
+          (r/errors-at :-key key-res)
+          (let [val-res (tree-validate this val-validator v)]
+            (if (r/error? val-res)
+              (r/errors-at :-value val-res)
+              [key-res val-res]))))))
+  (-fmap [this validator f]
+    (fn [v]
+      (let [res (tree-validate this validator v)]
+        (if (r/error? res)
+          res
+          (f res)))))
   (-one-of [this validatorA validatorB]
     (fn [v]
       (let [rA (tree-validate this validatorA v)]
@@ -81,6 +97,8 @@
 
 (defrecord PossibleErrorsWalker []
   TreeWalker
+  (-mempty [this]
+    (r/validation-errors))
   (-leaf [_this id _vfn constraints]
     (r/sample-error [id] constraints))
   (-at [this id _key validator optional?]
@@ -97,13 +115,21 @@
     (r/join-errors
       (validator-eval validatorA this)
       (validator-eval validatorB this)))
-  (-map [this validatorKey validatorVal])
-  (-each [this validator]
+  (-fmap [this validator _f]
+    (validator-eval validator this))
+  (-entry [this key-validator val-validator]
     (r/join-errors
-      (r/sample-error [:not-collection])
-      (validator-eval validator this)))
+      (r/errors-at :-key (validator-eval key-validator this))
+      (r/errors-at :-value (validator-eval val-validator this))))
+  (-each [this validator]
+    (validator-eval validator this))
   (-one-of [this _validatorA validatorB]
     (validator-eval validatorB this)))
+
+(defrecord MemptyEval []
+  TreeEval
+  (validator-eval [_this tree-walker]
+    (-mempty tree-walker)))
 
 (defrecord ValidatorEval [id constraints vfn]
   TreeEval
@@ -130,6 +156,11 @@
   (validator-eval [_this tree-walker]
     (-group tree-walker validatorA validatorB)))
 
+(defrecord FmapEval [validator f]
+  TreeEval
+  (validator-eval [_this tree-walker]
+    (-fmap tree-walker validator f)))
+
 (defrecord EachEval [validator]
   TreeEval
   (validator-eval [_this tree-walker]
@@ -140,6 +171,11 @@
   (validator-eval [_this tree-walker]
     (-one-of tree-walker validatorA validatorB)))
 
+(defrecord EntryEval [key-validator val-validator]
+  TreeEval
+  (validator-eval [_this tree-walker]
+    (-entry tree-walker key-validator val-validator)))
+
 ;; Constructor functions
 (defn validate [validator data]
   (let [validator-fn (validator-eval validator (ValidatorWalker.))]
@@ -149,44 +185,30 @@
   (assert (keyword? id) (str "Validator ID must be a keyword - was " id))
   (ValidatorEval. id constraints fn))
 
-
-;; TODO get rid of this crap?
-(def ^:private allowed-preds
-  #{"clojure.core/int?"
-    "clojure.core/string?"
-    "clojure.core/boolean?"
-    "clojure.core/number?"
-    "clojure.core/float?"
-    "clojure.core/double?"
-    "clojure.core/nil?"
-    "clojure.core/keyword?"
-    "clojure.core/any?"})
-
-(defn predicate-id [sym]
-  ;; TODO throw exception if fn--
-  (let [f-ref (-> (Compiler/demunge (str sym))
-                  (str/split #"@")
-                  first
-                  (str/split #"--")
-                  first)]
-    (if (allowed-preds f-ref)
-      (keyword f-ref)
-      f-ref)))
-
-
 (defn predicate
-  ([predicate-fn]
-   (predicate (predicate-id predicate-fn) predicate-fn))
-  ([id predicate-fn]
-   (validator id {} (fn [_ v]
-                      (when (predicate-fn v)
-                        (r/success-value v))))))
+  [id predicate-fn]
+  (validator id {} (fn [_ v]
+                     (when (predicate-fn v)
+                       (r/success-value v)))))
 
 (defn parser [id parser-fn]
   (validator id {} (fn [_ v]
                      (let [parsed (parser-fn v)]
                        (when-not (nil? parsed)
                          (r/success-value parsed))))))
+
+(def Associative (predicate :clojure.core/associative? associative?))
+(def Coll (predicate :clojure.core/coll? coll?))
+
+(defn chain [validator1 validator2 & validators]
+  (->> validators
+       (concat [validator1 validator2])
+       (reduce (fn [v1 v2] (ChainEval. v1 v2)))))
+
+(defn group [validator1 validator2 & validators]
+  (->> validators
+       (concat [validator1 validator2])
+       (reduce (fn [v1 v2] (GroupEval. v1 v2)))))
 
 (defn at
   ([key validator]
@@ -203,23 +225,23 @@
    (AtEval. id key validator true)))
 
 
-(defn chain [validator1 validator2 & validators]
-  (->> validators
-       (concat [validator1 validator2])
-       (reduce (fn [v1 v2] (ChainEval. v1 v2)))))
-
-(defn group [validator1 validator2 & validators]
-  (->> validators
-       (concat [validator1 validator2])
-       (reduce (fn [v1 v2] (GroupEval. v1 v2)))))
+(defn fmap [validator f]
+  (FmapEval. validator f))
 
 (defn each [validator]
-  (EachEval. validator))
+  ;; TODO chain with check that value is a collection
+  (chain
+    Coll
+    (EachEval. validator)))
 
 (defn one-of [validator1 validator2 & validators]
   (->> validators
        (concat [validator1 validator2])
        (reduce (fn [v1 v2] (OneOfEval. v1 v2)))))
+
+(defn- entry [key-validator val-validator]
+  ;; TODO chain with check value is a tuple and value has 2 values
+  (EntryEval. key-validator val-validator))
 
 (defn validate [validator data]
   (let [validator-fn (validator-eval validator (ValidatorWalker.))]
@@ -231,19 +253,10 @@
 
 ;; Collection shenanigans
 
-(extend-type IFn
-  TreeEval
-  (validator-eval [this tree-walker]
-    (let [id (predicate-id this)
-          vfn (fn [_ v]
-                (when (this v)
-                  (r/success-value v)))]
-      (-leaf tree-walker id vfn {}))))
-
 (extend-type APersistentVector
   TreeEval
   (validator-eval [this tree-walker]
-    (-each tree-walker (first this))))
+    (validator-eval (each (first this)) tree-walker)))
 
 (defrecord RequiredKey [id key])
 (defrecord OptionalKey [id key])
@@ -254,6 +267,9 @@
   ([id k]
    (RequiredKey. id k)))
 
+(defn is-required-key? [k]
+  (instance? RequiredKey k))
+
 (defn required-key-validator [{:keys [id key]} validator]
   (at id key validator))
 
@@ -263,87 +279,58 @@
   ([id k]
    (OptionalKey. id k)))
 
-(defn optional-key-validator [{:keys [id key]} validator]
-  (opt-at id key validator))
-
-(def any-key ::any-key)
-
-(defn key-set-validator [valid-keys]
-  (validator ::invalid-keys {:keys valid-keys}
-             (fn [constraints m]
-               (let [input-keys (keys m)
-                     invalid-keys (set/difference (set input-keys) (set (:keys constraints)))]
-                 (when (empty? invalid-keys)
-                   (r/success-value m))))))
-
-(defn set-strictness [strict-mode? valid-keys key-validator]
-  (if strict-mode?
-    (group key-validator
-           (key-set-validator valid-keys))
-    key-validator))
-
-(defn is-required-key? [k]
-  (instance? RequiredKey k))
-
 (defn is-optional-key? [k]
   (instance? OptionalKey k))
 
-(defn- unwrap-key [k]
+(defn unwrap-key [k]
   (if (or (is-required-key? k) (is-optional-key? k))
     (:key k)
     k))
 
-(defn- unwrap-keys [m]
-  (->> m
-       keys
-       (map unwrap-key)
-       (remove #{any-key})))
+(defn optional-key-validator [{:keys [id key]} validator]
+  (opt-at id key validator))
 
-(defn- specific-key-validator [m]
-  (->>
-    (map (fn [[k v]]
-           (cond
-             (is-optional-key? k) (optional-key-validator k v)
-             (is-required-key? k) (required-key-validator k v)
-             (satisfies? TreeEval k) nil
-             :else (at k v))))
-    (remove nil?)
-    (reduce group)))
+(defn valid-key-validator [valid-keys]
+  (validator ::invalid-key {:keys valid-keys}
+             (fn [_constraints k]
+               (when (contains? (set valid-keys) k)
+                 (r/success-value k)))))
 
-(defn entry-validator [keys-to-ignore key-validator val-validator]
-
-  )
+(def no-op-validator (MemptyEval.))
 
 (defn entries-validator [m]
-  (let [keys-to-ignore (->> m
-                            (remove (comp #(satisfies? TreeEval %) first))
-                            )
-        [keyv valv] (->> m  ;; TODO (+ throw error if more than one
+  ;; TODO (+ throw error if more than one generic key/val validator pair
+  (let [valid-keys (->> m
+                        keys
+                        (map unwrap-key)
+                        (remove #(satisfies? TreeEval %)))
+        [keyv valv] (->> m
                          (filter (comp #(satisfies? TreeEval %) first))
-                         first)]
-    (validator :entry {} (fn [constraints v]
-                           ;;
-                           ))
-    )
+                         first)
+        valid-key-entry (entry (valid-key-validator valid-keys) no-op-validator)
+        entry-validator (if keyv
+                          (one-of valid-key-entry (entry keyv valv))
+                          valid-key-entry)]
+    (fmap (EachEval. entry-validator) #(into {} %))))
 
-  )
+(defn- specific-key-validator [m]
+  (->> m
+       (map (fn [[k v]]
+              (cond
+                (is-optional-key? k) (optional-key-validator k v)
+                (is-required-key? k) (required-key-validator k v)
+                (satisfies? TreeEval k) nil
+                :else (at k v))))
+       (remove nil?)
+       (reduce group no-op-validator)))
 
-(defn- construct-map-validator [m]
-  (let [strict-mode? (not (contains? m any-key))
-        unwrapped-keys (unwrap-keys m)]
-    (->> m
-         (map (fn [[k v]]
-                (cond
-                  (is-optional-key? k) (optional-key-validator k v)
-                  (is-required-key? k) (required-key-validator k v)
-                  (= k any-key) nil
-                  :else (at k v))))
-         (remove nil?)
-         (reduce group)
-         (set-strictness strict-mode? unwrapped-keys))))
+(defn map-validator [m]
+  (chain (predicate :clojure.core/associative? associative?)
+         (group (specific-key-validator m)
+                (entries-validator m))))
 
 (extend-type APersistentMap
   TreeEval
   (validator-eval [this tree-walker]
-    (let [validator (construct-map-validator this)]
+    (let [validator (map-validator this)]
       (validator-eval validator tree-walker))))
