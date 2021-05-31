@@ -3,6 +3,8 @@
             [clojure.test.check.generators :as g]
             [clojure.string :as str]))
 
+(def max-tries 10)
+
 (defn join-ids [tw separator validatorA validatorB]
   (->> [validatorA validatorB]
        (map #(c/validator-eval % tw))
@@ -19,9 +21,9 @@
     id)
   (-at [_this id _key _validator _optional?]
     id)
-  (-chain [this validatorA validatorB]
+  (-chain [this _validatorA validatorB]
     (c/validator-eval validatorB this))
-  (-group [this validatorA validatorB]
+  (-group [this _validatorA validatorB]
     (c/validator-eval validatorB this))
   (-fmap [this validator _f]
     (c/validator-eval validator this))
@@ -46,19 +48,17 @@
 (defn such-that [id pred gen]
   (g/such-that pred
                gen
-               {:max-tries 10
-                :ex-fn     (fn [m] (ex-info (format "Couldn't gen value for validator %s" id)
-                                            (merge m {:id      id
-                                                      :example (first (g/sample gen))})))}))
+               {:max-tries max-tries
+                :ex-fn     (fn [m] (ex-info (format "Couldn't gen value for validator %s, after %s attempts" id max-tries)
+                                            (merge m {:id      id})))}))
 
 (defn such-that-both [idA idB genA predB]
   (g/such-that predB
                genA
-               {:max-tries 10
-                :ex-fn     (fn [m] (ex-info (format "Couldn't generate a value for validator %s that also satisfies %s" idA idB)
+               {:max-tries max-tries
+                :ex-fn     (fn [m] (ex-info (format "Couldn't generate a value for validator %s that also satisfies %s, after %s attempts" idA idB max-tries)
                                             (merge m {:idA     idA
-                                                      :idB     idB
-                                                      :example (first (g/sample genA))})))}))
+                                                      :idB     idB})))}))
 
 (defn look-up-lib [generator-lib validator]
   (let [id (get-generator-id validator)]
