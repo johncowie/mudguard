@@ -412,6 +412,7 @@
 (def Str (predicate :clojure.core/string? string?))
 (def Nil (predicate :clojure.core/nil? nil?))
 (def Keyword (predicate :clojure.core/keyword? keyword?))
+(def Num (predicate :clojure.core/number? number?))
 (def Any no-op-validator)
 ;; TODO specify default generators here?
 

@@ -174,7 +174,8 @@
   {:clojure.core/int?     g/small-integer
    :clojure.core/string?  g/string
    :clojure.core/boolean? g/boolean
-   :clojure.core/keyword? g/keyword
+   :clojure.core/keyword? (g/one-of [g/keyword g/keyword-ns])
+   :clojure.core/number?  (g/one-of [g/double g/small-integer])
    :clojure.core/nil?     (g/return nil)
    })
 

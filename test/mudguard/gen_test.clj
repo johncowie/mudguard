@@ -23,6 +23,7 @@
         m/Keyword
         m/Bool
         m/Nil
+        m/Num
         {:a m/Str}
         (m/at :a m/Int)
         (m/opt-at :a m/Str)
