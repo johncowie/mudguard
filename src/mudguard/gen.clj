@@ -1,7 +1,8 @@
 (ns mudguard.gen
   (:require [mudguard.core :as c]
             [clojure.test.check.generators :as g]
-            [clojure.string :as str]))
+            [clojure.string :as str])
+  (:import (java.util Date)))
 
 (def max-tries 5)
 
@@ -177,6 +178,7 @@
    :clojure.core/keyword? (g/one-of [g/keyword g/keyword-ns])
    :clojure.core/number?  (g/one-of [g/double g/small-integer])
    :clojure.core/float?   g/double
+   :clojure.core/inst?    (g/return (Date.))
    :clojure.core/nil?     (g/return nil)
    })
 
