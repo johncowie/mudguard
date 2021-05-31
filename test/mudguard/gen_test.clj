@@ -24,6 +24,7 @@
         m/Bool
         m/Nil
         m/Num
+        m/FloatNum
         {:a m/Str}
         (m/at :a m/Int)
         (m/opt-at :a m/Str)

@@ -176,6 +176,7 @@
    :clojure.core/boolean? g/boolean
    :clojure.core/keyword? (g/one-of [g/keyword g/keyword-ns])
    :clojure.core/number?  (g/one-of [g/double g/small-integer])
+   :clojure.core/float?   g/double
    :clojure.core/nil?     (g/return nil)
    })
 
