@@ -182,6 +182,9 @@
    :clojure.core/nil?     (g/return nil)
    :clojure.core/nat-int? g/nat
    :clojure.core/fn?      (g/return (fn []))
+   ::c/equals             (fn [validator]
+                            (let [{:keys [equal-to]} (c/get-constraints validator)]
+                              (g/return equal-to)))
    })
 
 (defn generator

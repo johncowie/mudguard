@@ -32,6 +32,8 @@
         {:a m/Str}
         (m/at :a m/Int)
         (m/opt-at :a m/Str)
+        (m/maybe m/Str)
+        (m/equals "Gilbert")
         (m/chain m/Str
                  (m/parser :parse-int #(Integer/parseInt %)))
         [{:a m/Int}]

@@ -447,7 +447,13 @@
 ;; TODO specify default generators here?
 
 (def NotBlank (predicate :not-blank (complement str/blank?)))
+
 (defn maybe [validator] (one-of Nil validator))
+
+(defn equals [val]
+  (validator ::equals {:equal-to val} (fn [_ v]
+                                        (when (= v val)
+                                          (success-value v)))))
 
 ;; TODO
 ;(defn matches-regex [regex] Any)
