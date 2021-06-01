@@ -27,6 +27,7 @@
         m/Num
         m/FloatNum
         m/Inst
+        m/NatInt
         {:a m/Str}
         (m/at :a m/Int)
         (m/opt-at :a m/Str)

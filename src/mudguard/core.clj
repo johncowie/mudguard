@@ -438,6 +438,7 @@
 (def Keyword (predicate :clojure.core/keyword? keyword?))
 (def Num (predicate :clojure.core/number? number?))
 (def FloatNum (predicate :clojure.core/float? float?))
+(def NatInt (predicate :clojure.core/nat-int? nat-int?))
 (def Inst (predicate :clojure.core/inst? inst?))
 (def Any no-op-validator)
 ;; TODO specify default generators here?

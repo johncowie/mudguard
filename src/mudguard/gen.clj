@@ -180,6 +180,7 @@
    :clojure.core/float?   g/double
    :clojure.core/inst?    (g/return (Date.))
    :clojure.core/nil?     (g/return nil)
+   :clojure.core/nat-int? g/nat
    })
 
 (defn generator
