@@ -441,6 +441,7 @@
 (def NatInt (predicate :clojure.core/nat-int? nat-int?))
 (def Inst (predicate :clojure.core/inst? inst?))
 (def Fn (predicate :clojure.core/fn? fn?))
+(def NotEmpty (predicate :clojure.core/not-empty not-empty))
 
 (def Any no-op-validator)
 ;; TODO specify default generators here?
