@@ -440,6 +440,8 @@
 (def FloatNum (predicate :clojure.core/float? float?))
 (def NatInt (predicate :clojure.core/nat-int? nat-int?))
 (def Inst (predicate :clojure.core/inst? inst?))
+(def Fn (predicate :clojure.core/fn? fn?))
+
 (def Any no-op-validator)
 ;; TODO specify default generators here?
 
