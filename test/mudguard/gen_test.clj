@@ -12,8 +12,9 @@
     (testing "others"
       (are [validator]
         (try
-          (first (g/sample (mg/generator validator {:parse-int (g/fmap str g/small-integer)
-                                                    :more-than-10 (g/return 12)})))
+          (-> (g/sample (mg/generator validator {:parse-int    (g/fmap str g/small-integer)
+                                                 :more-than-10 (g/return 12)}))
+              (nth 5))
           true
           (catch Exception e
             (println (.getMessage e))
@@ -36,6 +37,9 @@
                  (m/group (m/predicate :even even?)
                           (m/predicate :more-than-10 #(> % 10))))
         (m/one-of m/Str m/Int m/Bool)
+        {(m/required-key :a "A") m/Str
+         (m/required-key :b "B") m/Str
+         m/Any                   m/Any}
         )
       )
     )

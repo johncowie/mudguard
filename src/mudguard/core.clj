@@ -141,16 +141,24 @@
        (concat [validator1 validator2])
        (reduce (fn [v1 v2] (GroupEval. v1 v2)))))
 
+(defn mk-error-id [key]
+  (if (string? key)
+    (-> key
+        (str/replace #"\s+" "-")
+        (Compiler/munge)
+        keyword)
+    key))
+
 (defn at
   ([key validator]
-   (at key key validator))
+   (at (mk-error-id key) key validator))
   ([id key validator]
    (assert (keyword? id) (str "Validator ID must be a keyword - was " id))
    (AtEval. id key validator false)))
 
 (defn opt-at
   ([key validator]
-   (opt-at key key validator))
+   (opt-at (mk-error-id key) key validator))
   ([id key validator]
    (assert (keyword? id) (str "Validator ID must be a keyword - was " id))
    (AtEval. id key validator true)))
