@@ -4,7 +4,7 @@
             [clojure.string :as str])
   (:import (java.util Date)))
 
-(def max-tries 5)
+(def max-tries 10)
 
 (defn join-ids [tw separator validatorA validatorB]
   (->> [validatorA validatorB]
