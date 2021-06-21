@@ -1,6 +1,7 @@
 (ns mudguard.core
   (:require [clojure.string :as str])
-  (:import (clojure.lang APersistentVector APersistentMap)))
+  (:import (clojure.lang APersistentVector APersistentMap))
+  (:refer-clojure :exclude [Inst]))
 
 ;; Result values
 (defn validation-error
