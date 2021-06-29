@@ -15,7 +15,7 @@
 (deftest parser-validator-test
   (let [parser (sut/validator :parse-int {}
                               (fn [_ v]
-                                (sut/success-value (Integer/parseInt v))))]
+                                (Integer/parseInt v)))]
     (is (= 1
            (sut/coerce parser "1")))
     (is (= (sut/validation-error [:parse-int] "bob" {})
@@ -42,7 +42,7 @@
   (testing "mandatory"
     (let [int-parser (sut/validator :parse-int {}
                                     (fn [_ v]
-                                      (sut/success-value (Integer/parseInt v))))
+                                      (Integer/parseInt v)))
           validator (sut/at :a int-parser)]
       (is (= (sut/validation-error [:a :parse-int] "a" {})
              (sut/coerce validator {:a "a"})))
@@ -70,7 +70,7 @@
 (deftest group-test
   (let [int-parser (sut/validator :parse-int {}
                                   (fn [_ v]
-                                    (sut/success-value (Integer/parseInt v))))
+                                    (Integer/parseInt v)))
         validator (sut/group (sut/at :a int-parser)
                              (sut/at :b int-parser)
                              (sut/at :c int-parser))]
@@ -96,7 +96,7 @@
   (let [is-str (sut/predicate :string? string?)
         int-parser (sut/validator :parse-int {}
                                   (fn [_ v]
-                                    (sut/success-value (Integer/parseInt v))))
+                                    (Integer/parseInt v)))
         >10 (sut/predicate :>10 #(> % 10))
         validator (sut/chain is-str int-parser >10)]
     (is (= 20
@@ -117,7 +117,7 @@
 (deftest each-test
   (let [int-parser (sut/validator :parse-int {}
                                   (fn [_ v]
-                                    (sut/success-value (Integer/parseInt v))))
+                                    (Integer/parseInt v)))
         validator (sut/each int-parser)]
     (is (= [1 2 3]
            (sut/coerce validator ["1" "2" "3"])))

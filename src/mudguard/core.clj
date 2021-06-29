@@ -30,14 +30,14 @@
 (defn errors-at [key err]
   (update err ::errors (partial map (fn [e] (update e ::id (partial cons key))))))
 
-(defn success-value [v]
-  {::success v})
+(defn set-constraints [constraints err]
+  (update err ::errors (partial map (fn [e] (assoc e ::constraints constraints)))))
 
-(defn success-value? [v]
-  (and (associative? v) (contains? v ::success)))
+(defn set-context [context err]
+  (update err ::errors (partial map (fn [e] (assoc e ::context context)))))
 
-(defn extract-success-val [v]
-  (::success v))
+(defn error-value [v]
+  (validation-error [] v))
 
 
 ;; Protocols Tree
@@ -123,14 +123,16 @@
 (defn predicate
   [id predicate-fn]
   (validator id {} (fn [_ v]
-                     (when (predicate-fn v)
-                       (success-value v)))))
+                     (if (predicate-fn v)
+                       v
+                       (error-value v)))))
 
 (defn parser [id parser-fn]
   (validator id {} (fn [_ v]
                      (let [parsed (parser-fn v)]
-                       (when-not (nil? parsed)
-                         (success-value parsed))))))
+                       (if (nil? parsed)
+                         (error-value v)
+                         parsed)))))
 
 (defn chain [validator1 validator2 & validators]
   (->> validators
@@ -227,8 +229,9 @@
 (defn valid-key-validator [valid-keys]
   (validator ::valid-key {:keys valid-keys}
              (fn [_constraints k]
-               (when (contains? (set valid-keys) k)
-                 (success-value k)))))
+               (if (contains? (set valid-keys) k)
+                 k
+                 (error-value k)))))
 
 (defn is-validator? [v]
   (satisfies? TreeEval v))
@@ -277,9 +280,10 @@
     (fn [v]
       (try
         (let [return-value (vfn constraints v)]
-          (if (success-value? return-value)
-            (extract-success-val return-value)
-            (validation-error [id] v constraints)))
+          (if (error? return-value)
+            (->> (errors-at id return-value)
+                 (set-constraints constraints))
+            return-value))
         (catch Exception _e
           (validation-error [id] v constraints)))))
   (-at [this id key validator optional?]
@@ -333,6 +337,7 @@
             (if (error? val-res)
               (errors-at :-value val-res)
               [key-res val-res]))))))
+  ;; TODO add support for emap?
   (-fmap [this validator f]
     (fn [v]
       (let [res (tree-validate this validator v)]
@@ -453,8 +458,9 @@
 
 (defn equals [val]
   (validator ::equals {:equal-to val} (fn [_ v]
-                                        (when (= v val)
-                                          (success-value v)))))
+                                        (if (= v val)
+                                          v
+                                          (error-value v)))))
 
 ;; TODO
 ;(defn matches-regex [regex] Any)
