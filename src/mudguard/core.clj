@@ -30,10 +30,10 @@
 (defn errors-at [key err]
   (update err ::errors (partial map (fn [e] (update e ::id (partial cons key))))))
 
-(defn set-constraints [constraints err]
+(defn set-constraints [err constraints]
   (update err ::errors (partial map (fn [e] (assoc e ::constraints constraints)))))
 
-(defn set-context [context err]
+(defn set-context [err context]
   (update err ::errors (partial map (fn [e] (assoc e ::context context)))))
 
 (defn error-value [v]
@@ -122,13 +122,13 @@
 
 (defn predicate
   [id predicate-fn]
-  (validator id {} (fn [_ v]
+  (validator id {} (fn [v]
                      (if (predicate-fn v)
                        v
                        (error-value v)))))
 
 (defn parser [id parser-fn]
-  (validator id {} (fn [_ v]
+  (validator id {} (fn [v]
                      (let [parsed (parser-fn v)]
                        (if (nil? parsed)
                          (error-value v)
@@ -228,7 +228,7 @@
 
 (defn valid-key-validator [valid-keys]
   (validator ::valid-key {:keys valid-keys}
-             (fn [_constraints k]
+             (fn [k]
                (if (contains? (set valid-keys) k)
                  k
                  (error-value k)))))
@@ -279,10 +279,10 @@
   (-leaf [_this id vfn constraints]
     (fn [v]
       (try
-        (let [return-value (vfn constraints v)]
+        (let [return-value (vfn v)]
           (if (error? return-value)
-            (->> (errors-at id return-value)
-                 (set-constraints constraints))
+            (-> (errors-at id return-value)
+                (set-constraints constraints))
             return-value))
         (catch Exception _e
           (validation-error [id] v constraints)))))
@@ -457,7 +457,7 @@
 (defn maybe [validator] (one-of Nil validator))
 
 (defn equals [val]
-  (validator ::equals {:equal-to val} (fn [_ v]
+  (validator ::equals {:equal-to val} (fn [v]
                                         (if (= v val)
                                           v
                                           (error-value v)))))
@@ -465,12 +465,7 @@
 ;; TODO
 ;(defn matches-regex [regex] Any)
 
-;; TODO
-;; - bunch of default validators
-;; - equals value
-
 ;; TODO roadmap
-;; Generators
 ;; Pre-compile
 ;; Simplify map shenanigans
 ;; Swagger

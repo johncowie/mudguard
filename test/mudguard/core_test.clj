@@ -14,7 +14,7 @@
 
 (deftest parser-validator-test
   (let [parser (sut/validator :parse-int {}
-                              (fn [_ v]
+                              (fn [v]
                                 (Integer/parseInt v)))]
     (is (= 1
            (sut/coerce parser "1")))
@@ -41,7 +41,7 @@
 (deftest at-test
   (testing "mandatory"
     (let [int-parser (sut/validator :parse-int {}
-                                    (fn [_ v]
+                                    (fn [v]
                                       (Integer/parseInt v)))
           validator (sut/at :a int-parser)]
       (is (= (sut/validation-error [:a :parse-int] "a" {})
@@ -69,7 +69,7 @@
 
 (deftest group-test
   (let [int-parser (sut/validator :parse-int {}
-                                  (fn [_ v]
+                                  (fn [v]
                                     (Integer/parseInt v)))
         validator (sut/group (sut/at :a int-parser)
                              (sut/at :b int-parser)
@@ -95,7 +95,7 @@
 (deftest chain-test
   (let [is-str (sut/predicate :string? string?)
         int-parser (sut/validator :parse-int {}
-                                  (fn [_ v]
+                                  (fn [v]
                                     (Integer/parseInt v)))
         >10 (sut/predicate :>10 #(> % 10))
         validator (sut/chain is-str int-parser >10)]
@@ -116,7 +116,7 @@
 
 (deftest each-test
   (let [int-parser (sut/validator :parse-int {}
-                                  (fn [_ v]
+                                  (fn [v]
                                     (Integer/parseInt v)))
         validator (sut/each int-parser)]
     (is (= [1 2 3]
