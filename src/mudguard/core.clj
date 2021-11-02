@@ -402,11 +402,11 @@
 
 (defn coerce-or-throw
   ([validator data]
-   (coerce-or-throw validator data "Validation failed."))
+   (coerce-or-throw validator data "Validation failed: "))
   ([validator data msg]
    (let [res (coerce validator data)]
      (if (error? res)
-       (throw (ex-info msg res))
+       (throw (ex-info (str msg res) res))
        res))))
 
 (defn check
